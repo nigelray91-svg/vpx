@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { useConfig } from '@/lib/useConfig';
 import { Turnstile } from '@/components/Turnstile';
-import { Logo } from '@/components/Logo';
+import { AuthShell } from '@/components/AuthShell';
 import { ApiError, googleAuthUrl } from '@/lib/api';
 import { Button, Field, inputClasses } from '@/components/ui';
 
@@ -56,89 +56,76 @@ function LoginInner() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-grid-fade px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex justify-center">
-          <Logo href="/" size={34} />
+    <AuthShell title="Welcome back" subtitle="Sign in to manage your proxies and billing.">
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
         </div>
+      )}
 
-        <div className="rounded-2xl border border-ink-600 bg-ink-800/70 p-8 backdrop-blur">
-          <h1 className="text-2xl font-bold text-white">Welcome back</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Sign in to manage your proxies and billing.
-          </p>
+      {config?.google_enabled && (
+        <>
+          <a
+            href={googleAuthUrl()}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg border border-ink-600 bg-ink-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ink-600"
+          >
+            <GoogleIcon />
+            Continue with Google
+          </a>
+          <div className="my-6 flex items-center gap-3 text-xs text-slate-500">
+            <div className="h-px flex-1 bg-ink-600" />
+            OR
+            <div className="h-px flex-1 bg-ink-600" />
+          </div>
+        </>
+      )}
 
-          {error && (
-            <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              {error}
-            </div>
-          )}
+      <form onSubmit={onSubmit} className={config?.google_enabled ? 'space-y-4' : 'mt-6 space-y-4'}>
+        <Field label="Email" htmlFor="email">
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputClasses}
+            placeholder="you@example.com"
+          />
+        </Field>
+        <Field label="Password" htmlFor="password">
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClasses}
+            placeholder="••••••••"
+          />
+        </Field>
 
-          {config?.google_enabled && (
-            <>
-              <a
-                href={googleAuthUrl()}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg border border-ink-600 bg-ink-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ink-600"
-              >
-                <GoogleIcon />
-                Continue with Google
-              </a>
-              <div className="my-6 flex items-center gap-3 text-xs text-slate-500">
-                <div className="h-px flex-1 bg-ink-600" />
-                OR
-                <div className="h-px flex-1 bg-ink-600" />
-              </div>
-            </>
-          )}
+        {turnstileRequired && (
+          <Turnstile
+            siteKey={config!.turnstile_site_key}
+            onVerify={setTurnstileToken}
+            onExpire={() => setTurnstileToken('')}
+          />
+        )}
 
-          <form onSubmit={onSubmit} className="space-y-4">
-            <Field label="Email" htmlFor="email">
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClasses}
-                placeholder="you@example.com"
-              />
-            </Field>
-            <Field label="Password" htmlFor="password">
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={inputClasses}
-                placeholder="••••••••"
-              />
-            </Field>
+        <Button type="submit" fullWidth loading={submitting}>
+          Sign in
+        </Button>
+      </form>
 
-            {turnstileRequired && (
-              <Turnstile
-                siteKey={config!.turnstile_site_key}
-                onVerify={setTurnstileToken}
-                onExpire={() => setTurnstileToken('')}
-              />
-            )}
-
-            <Button type="submit" fullWidth loading={submitting}>
-              Sign in
-            </Button>
-          </form>
-
-          <p className="mt-6 text-center text-sm text-slate-400">
-            Don&apos;t have an account?{' '}
-            <Link href="/register" className="font-semibold text-brand-400 hover:text-brand-300">
-              Create one
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+      <p className="mt-6 text-center text-sm text-slate-400">
+        Don&apos;t have an account?{' '}
+        <Link href="/register" className="font-semibold text-brand-400 hover:text-brand-300">
+          Create one
+        </Link>
+      </p>
+    </AuthShell>
   );
 }
 

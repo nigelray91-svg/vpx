@@ -73,7 +73,12 @@ const tools = ['Python', 'Scrapy', 'Playwright', 'Puppeteer', 'Selenium', 'cURL'
 
 export default async function LandingPage() {
   const allPlans = await fetchPlansServer();
-  const plans = allPlans.slice(0, 3);
+  // Feature a diverse spread across proxy types (incl. mobile & datacenter/GB)
+  // rather than just the first few by sort order.
+  const featuredCodes = ['resi-rotating', 'isp-static', 'dc-gb', 'ipv6-pool', 'mobile-4g'];
+  const byCode = new Map(allPlans.map((p) => [p.code, p]));
+  const plans = featuredCodes.map((c) => byCode.get(c)).filter(Boolean).slice(0, 6) as typeof allPlans;
+  const previewPlans = plans.length ? plans : allPlans.slice(0, 3);
 
   const jsonLd = [
     {
@@ -324,18 +329,20 @@ export default async function LandingPage() {
       </section>
 
       {/* ===== Pricing preview ===== */}
-      {plans.length > 0 && (
+      {previewPlans.length > 0 && (
         <section id="pricing" className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
           <Reveal className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
               Simple, usage-based pricing
             </h2>
-            <p className="mt-4 text-slate-400">Pay for exactly what you use. Top up and order in seconds.</p>
+            <p className="mt-4 text-slate-400">
+              Every proxy type — residential, ISP, datacenter, IPv6 and mobile — billed per GB or IP from one wallet.
+            </p>
           </Reveal>
           <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {plans.map((plan, i) => (
-              <Reveal key={plan.id} delay={i * 90}>
-                <PlanCard plan={plan} />
+            {previewPlans.map((plan, i) => (
+              <Reveal key={plan.id} delay={(i % 3) * 90}>
+                <PlanCard plan={plan} popular={plan.code === 'resi-rotating'} />
               </Reveal>
             ))}
           </div>

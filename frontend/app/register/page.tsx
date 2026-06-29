@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { useConfig } from '@/lib/useConfig';
 import { Turnstile } from '@/components/Turnstile';
-import { Logo } from '@/components/Logo';
+import { AuthShell } from '@/components/AuthShell';
 import { ApiError, googleAuthUrl } from '@/lib/api';
 import { Button, Field, inputClasses } from '@/components/ui';
 
@@ -58,42 +58,31 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-grid-fade px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex justify-center">
-          <Logo href="/" size={34} />
+    <AuthShell title="Create your account" subtitle="Provision premium proxies in minutes.">
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
         </div>
+      )}
 
-        <div className="rounded-2xl border border-ink-600 bg-ink-800/70 p-8 backdrop-blur">
-          <h1 className="text-2xl font-bold text-white">Create your account</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Start reselling premium proxies in minutes.
-          </p>
+      {config?.google_enabled && (
+        <>
+          <a
+            href={googleAuthUrl()}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg border border-ink-600 bg-ink-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ink-600"
+          >
+            <GoogleIcon />
+            Sign up with Google
+          </a>
+          <div className="my-6 flex items-center gap-3 text-xs text-slate-500">
+            <div className="h-px flex-1 bg-ink-600" />
+            OR
+            <div className="h-px flex-1 bg-ink-600" />
+          </div>
+        </>
+      )}
 
-          {error && (
-            <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              {error}
-            </div>
-          )}
-
-          {config?.google_enabled && (
-            <>
-              <a
-                href={googleAuthUrl()}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg border border-ink-600 bg-ink-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ink-600"
-              >
-                <GoogleIcon />
-                Sign up with Google
-              </a>
-              <div className="my-6 flex items-center gap-3 text-xs text-slate-500">
-                <div className="h-px flex-1 bg-ink-600" />
-                OR
-                <div className="h-px flex-1 bg-ink-600" />
-              </div>
-            </>
-          )}
-
-          <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className={config?.google_enabled ? 'space-y-4' : 'mt-6 space-y-4'}>
             <Field label="Full name" htmlFor="full_name">
               <input
                 id="full_name"
@@ -144,25 +133,23 @@ export default function RegisterPage() {
               />
             )}
 
-            <Button type="submit" fullWidth loading={submitting}>
-              Create account
-            </Button>
-          </form>
+        <Button type="submit" fullWidth loading={submitting}>
+          Create account
+        </Button>
+      </form>
 
-          <p className="mt-6 text-center text-xs text-slate-500">
-            By creating an account you agree to our{' '}
-            <Link href="/terms" className="text-slate-400 underline">Terms</Link> and{' '}
-            <Link href="/privacy" className="text-slate-400 underline">Privacy Policy</Link>.
-          </p>
-          <p className="mt-4 text-center text-sm text-slate-400">
-            Already have an account?{' '}
-            <Link href="/login" className="font-semibold text-brand-400 hover:text-brand-300">
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+      <p className="mt-6 text-center text-xs text-slate-500">
+        By creating an account you agree to our{' '}
+        <Link href="/terms" className="text-slate-400 underline">Terms</Link> and{' '}
+        <Link href="/privacy" className="text-slate-400 underline">Privacy Policy</Link>.
+      </p>
+      <p className="mt-4 text-center text-sm text-slate-400">
+        Already have an account?{' '}
+        <Link href="/login" className="font-semibold text-brand-400 hover:text-brand-300">
+          Sign in
+        </Link>
+      </p>
+    </AuthShell>
   );
 }
 
