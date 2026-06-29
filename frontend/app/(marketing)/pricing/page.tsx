@@ -26,16 +26,16 @@ export default async function PricingPage() {
   return (
     <>
       {/* Header */}
-      <section className="relative overflow-hidden pb-2 pt-16">
+      <section className="relative overflow-hidden pb-0 pt-12">
         <Aurora />
         <div className="mx-auto max-w-2xl px-4 text-center sm:px-6 lg:px-8">
           <span className="inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-3.5 py-1.5 text-xs font-medium text-brand-200">
             Pay-as-you-go
           </span>
-          <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+          <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
             Pricing that scales with you
           </h1>
-          <p className="mt-4 text-lg text-slate-400">
+          <p className="mt-3 text-base text-slate-400">
             Top up your wallet and spend it across any proxy type. No contracts,
             no monthly minimums — only pay for what you use.
           </p>
@@ -43,7 +43,7 @@ export default async function PricingPage() {
       </section>
 
       {/* Plans */}
-      <section className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 pb-6 pt-8 sm:px-6 lg:px-8">
         {plans.length === 0 ? (
           <p className="text-center text-slate-400">Pricing is loading — please refresh.</p>
         ) : (
@@ -66,9 +66,9 @@ export default async function PricingPage() {
       </section>
 
       {/* Included with every plan */}
-      <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="rounded-2xl border border-ink-600 bg-ink-800/40 p-6">
-          <p className="mb-5 text-center text-sm font-semibold uppercase tracking-widest text-slate-500">
+      <section className="mx-auto max-w-5xl px-4 pb-14 sm:px-6 lg:px-8">
+        <div className="rounded-xl border border-ink-600 bg-ink-800/40 p-5">
+          <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-slate-500">
             Included with every plan
           </p>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -85,7 +85,7 @@ export default async function PricingPage() {
             })}
           </div>
         </div>
-        <p className="mt-8 text-center text-sm text-slate-500">
+        <p className="mt-6 text-center text-sm text-slate-500">
           Prices are per GB or IP and billed from your prepaid wallet balance.
           Need volume pricing?{' '}
           <a href={`mailto:${brand.supportEmail}`} className="text-brand-400 hover:text-brand-300">
@@ -93,7 +93,7 @@ export default async function PricingPage() {
           </a>
           .
         </p>
-        <div className="mt-8 flex justify-center">
+        <div className="mt-6 flex justify-center">
           <Link
             href="/register"
             className="group inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-600/30 transition-all hover:bg-brand-500"
