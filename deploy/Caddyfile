@@ -1,0 +1,25 @@
+# Production reverse proxy with automatic HTTPS (Let's Encrypt).
+# Replace the domains below and run: docker compose --profile edge up -d
+#
+# Both subdomains share the registrable domain so the auth cookies
+# (SameSite=Lax, Domain=.example.com) are sent on panel<->api requests.
+
+panel.example.com {
+	encode gzip zstd
+	reverse_proxy frontend:3000
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+api.example.com {
+	encode gzip zstd
+	reverse_proxy backend:8080
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		-Server
+	}
+}

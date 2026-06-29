@@ -1,0 +1,32 @@
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Go
+/backend/bin/
+/backend/server
+*.test
+*.out
+
+# Node / Next
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Docker
+.docker/data/
+
+# Logs
+*.log
