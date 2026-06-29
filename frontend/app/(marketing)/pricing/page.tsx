@@ -26,7 +26,7 @@ export default async function PricingPage() {
   return (
     <>
       {/* Header */}
-      <section className="relative overflow-hidden pb-4 pt-20">
+      <section className="relative overflow-hidden pb-2 pt-16">
         <Aurora />
         <div className="mx-auto max-w-2xl px-4 text-center sm:px-6 lg:px-8">
           <span className="inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-3.5 py-1.5 text-xs font-medium text-brand-200">
@@ -43,7 +43,7 @@ export default async function PricingPage() {
       </section>
 
       {/* Plans */}
-      <section className="mx-auto max-w-7xl px-4 pb-8 pt-10 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 lg:px-8">
         {plans.length === 0 ? (
           <p className="text-center text-slate-400">Pricing is loading — please refresh.</p>
         ) : (

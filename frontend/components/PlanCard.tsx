@@ -3,12 +3,12 @@ import { ArrowRight, Check, Globe2, Network, Server, Smartphone } from 'lucide-r
 import type { Plan } from '@/lib/types';
 import { formatUsd, titleCase } from '@/lib/format';
 
-const typeMeta: Record<string, { blurb: string; icon: typeof Globe2 }> = {
-  residential: { blurb: 'Real-device IPs from millions of homes worldwide.', icon: Globe2 },
-  isp: { blurb: 'Static residential IPs hosted on premium ISPs.', icon: Network },
-  datacenter: { blurb: 'Blazing-fast, high-bandwidth datacenter IPs.', icon: Server },
-  ipv6: { blurb: 'Cost-efficient IPv6 subnets at massive scale.', icon: Network },
-  mobile: { blurb: '4G/5G mobile IPs with the highest trust score.', icon: Smartphone },
+const typeIcon: Record<string, typeof Globe2> = {
+  residential: Globe2,
+  isp: Network,
+  datacenter: Server,
+  ipv6: Network,
+  mobile: Smartphone,
 };
 
 export function PlanCard({
@@ -22,69 +22,84 @@ export function PlanCard({
   ctaLabel?: string;
   popular?: boolean;
 }) {
-  const meta = typeMeta[plan.proxy_type] ?? { blurb: 'Premium proxy access on demand.', icon: Globe2 };
-  const Icon = meta.icon;
+  const Icon = typeIcon[plan.proxy_type] ?? Globe2;
   const features = [
-    `Billed per ${plan.unit.toUpperCase()} · min ${plan.min_quantity} ${plan.unit}${plan.min_quantity > 1 ? 's' : ''}`,
+    `Minimum ${plan.min_quantity} ${plan.unit}${plan.min_quantity > 1 ? 's' : ''}`,
     ['residential', 'isp', 'mobile'].includes(plan.proxy_type) ? 'Rotating & sticky sessions' : 'Per-request rotation',
     'Instant provisioning',
+    'Live usage in dashboard',
   ];
 
-  return (
+  const inner = (
     <div
-      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-ink-800/60 p-6 transition-all duration-300 hover:-translate-y-1 ${
-        popular
-          ? 'border-brand-500/60 shadow-xl shadow-brand-600/15'
-          : 'border-ink-600 hover:border-brand-500/40 hover:shadow-lg hover:shadow-brand-600/10'
+      className={`flex h-full flex-col rounded-[15px] p-6 ${
+        popular ? 'bg-ink-800' : 'border border-ink-600 bg-ink-800'
       }`}
     >
-      {/* top accent */}
-      <div
-        className={`absolute inset-x-0 top-0 h-1 ${popular ? 'bg-brand-gradient' : 'bg-transparent group-hover:bg-brand-gradient/60'}`}
-      />
-      {popular && (
-        <span className="absolute right-4 top-4 rounded-full bg-brand-gradient px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg shadow-brand-600/30">
-          Popular
-        </span>
-      )}
-
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500/10 text-brand-300 ring-1 ring-brand-500/20 transition-colors group-hover:bg-brand-500/20">
-        <Icon className="h-5 w-5" />
+      <div className="flex items-center justify-between">
+        <div
+          className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+            popular ? 'bg-brand-gradient text-white' : 'bg-brand-500/15 text-brand-300'
+          }`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+        {popular ? (
+          <span className="rounded-full bg-brand-gradient px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg shadow-brand-600/30">
+            Most popular
+          </span>
+        ) : (
+          <span className="rounded-full bg-ink-700 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+            {titleCase(plan.proxy_type)}
+          </span>
+        )}
       </div>
 
-      <h3 className="mt-4 text-lg font-semibold text-white">{plan.name}</h3>
-      <span className="mt-1 inline-flex w-fit rounded-full bg-ink-700 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
-        {titleCase(plan.proxy_type)}
-      </span>
-      <p className="mt-3 text-sm text-slate-400">{meta.blurb}</p>
+      <h3 className="mt-5 flex min-h-[3.25rem] items-start text-lg font-semibold leading-snug text-white">
+        {plan.name}
+      </h3>
 
-      <div className="mt-5 flex items-baseline gap-1">
-        <span className="bg-gradient-to-br from-white to-slate-400 bg-clip-text text-4xl font-extrabold text-transparent">
-          {formatUsd(plan.price_cents)}
-        </span>
-        <span className="text-sm text-slate-500">/ {plan.unit}</span>
+      <div className="mt-3 flex items-baseline gap-1.5">
+        <span className="text-5xl font-bold tracking-tight text-white">{formatUsd(plan.price_cents)}</span>
+        <span className="text-base text-slate-500">/ {plan.unit}</span>
       </div>
 
-      <ul className="mb-6 mt-5 flex-1 space-y-2.5 text-sm text-slate-300">
+      <div className="my-6 h-px w-full bg-gradient-to-r from-ink-600 to-transparent" />
+
+      <ul className="flex-1 space-y-3.5 text-sm">
         {features.map((f) => (
-          <li key={f} className="flex items-start gap-2.5">
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-400" />
-            <span>{f}</span>
+          <li key={f} className="flex items-center gap-3 text-slate-200">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-500/15">
+              <Check className="h-3 w-3 text-brand-300" />
+            </span>
+            {f}
           </li>
         ))}
       </ul>
 
       <Link
         href={href}
-        className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all ${
+        className={`group/btn mt-7 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
           popular
-            ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/25 hover:bg-brand-500'
-            : 'border border-ink-600 bg-ink-700/50 text-white hover:border-brand-500/50 hover:bg-ink-700'
+            ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 hover:bg-brand-500'
+            : 'bg-ink-700 text-white hover:bg-ink-600'
         }`}
       >
         {ctaLabel}
-        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+        <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-0.5" />
       </Link>
     </div>
+  );
+
+  if (popular) {
+    return (
+      <div className="relative h-full rounded-2xl bg-gradient-to-b from-brand-400 via-brand-500 to-accent-500 p-px shadow-2xl shadow-brand-600/25 transition-transform duration-300 hover:-translate-y-1.5">
+        <div className="absolute -inset-2 -z-10 rounded-3xl bg-brand-600/20 blur-2xl" />
+        {inner}
+      </div>
+    );
+  }
+  return (
+    <div className="h-full rounded-2xl transition-all duration-300 hover:-translate-y-1.5">{inner}</div>
   );
 }
