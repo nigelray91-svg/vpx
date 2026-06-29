@@ -31,7 +31,9 @@ import { JsonLd } from '@/components/JsonLd';
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
 export const metadata: Metadata = {
-  title: `${brand.name} — Premium Residential, ISP, Datacenter & Mobile Proxies`,
+  title: {
+    absolute: `${brand.name} — Premium Residential, ISP, Datacenter & Mobile Proxies`,
+  },
   description: `${brand.tagline} ${brand.ipCount} IPs, 195+ countries, instant provisioning, rotating & sticky sessions. Pay-as-you-go with card or crypto.`,
   alternates: { canonical: '/' },
 };

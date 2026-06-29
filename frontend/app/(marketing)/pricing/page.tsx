@@ -59,7 +59,7 @@ export default function PricingPage() {
       </div>
 
       <p className="mt-10 text-center text-sm text-slate-500">
-        Prices are per {`{GB / IP}`} and billed from your prepaid wallet balance.
+        Prices are per GB or IP and billed from your prepaid wallet balance.
         Need volume pricing? <span className="text-brand-400">Contact sales.</span>
       </p>
     </div>
