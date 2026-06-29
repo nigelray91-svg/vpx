@@ -47,9 +47,17 @@ export default async function PricingPage() {
         {plans.length === 0 ? (
           <p className="text-center text-slate-400">Pricing is loading — please refresh.</p>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className={`mx-auto grid gap-6 ${
+              plans.length <= 2
+                ? 'max-w-3xl sm:grid-cols-2'
+                : plans.length === 4
+                  ? 'max-w-5xl sm:grid-cols-2 lg:grid-cols-4'
+                  : 'sm:grid-cols-2 lg:grid-cols-3'
+            }`}
+          >
             {plans.map((plan, i) => (
-              <Reveal key={plan.id} delay={(i % 3) * 80}>
+              <Reveal key={plan.id} delay={(i % 4) * 70}>
                 <PlanCard plan={plan} ctaLabel="Get started" popular={plan.code === 'resi_pergb'} />
               </Reveal>
             ))}

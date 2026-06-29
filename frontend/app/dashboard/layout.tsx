@@ -73,13 +73,16 @@ export default function DashboardLayout({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
                 active
-                  ? 'bg-brand-600/20 text-white'
-                  : 'text-slate-400 hover:bg-ink-700 hover:text-white'
+                  ? 'bg-gradient-to-r from-brand-600/25 to-brand-600/5 text-white'
+                  : 'text-slate-400 hover:bg-ink-700/60 hover:text-white'
               }`}
             >
-              <Icon className="h-5 w-5" />
+              {active && (
+                <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-gradient" />
+              )}
+              <Icon className={`h-5 w-5 ${active ? 'text-brand-300' : ''}`} />
               {item.label}
             </Link>
           );

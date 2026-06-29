@@ -339,9 +339,15 @@ export default async function LandingPage() {
               Every proxy type — residential, ISP, datacenter, IPv6 and mobile — billed per GB or IP from one wallet.
             </p>
           </Reveal>
-          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className={`mx-auto mt-14 grid gap-6 ${
+              previewPlans.length === 4
+                ? 'max-w-5xl sm:grid-cols-2 lg:grid-cols-4'
+                : 'sm:grid-cols-2 lg:grid-cols-3'
+            }`}
+          >
             {previewPlans.map((plan, i) => (
-              <Reveal key={plan.id} delay={(i % 3) * 90}>
+              <Reveal key={plan.id} delay={(i % 4) * 80}>
                 <PlanCard plan={plan} popular={plan.code === 'resi_pergb'} />
               </Reveal>
             ))}

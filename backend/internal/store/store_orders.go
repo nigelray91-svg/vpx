@@ -49,18 +49,25 @@ func (s *Store) GetOrder(ctx context.Context, id, userID uuid.UUID) (*models.Ord
 }
 
 func (s *Store) ListOrders(ctx context.Context, userID uuid.UUID) ([]models.Order, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+orderCols+` FROM orders WHERE user_id=$1 ORDER BY created_at DESC LIMIT 200`, userID)
+	rows, err := s.pool.Query(ctx,
+		`SELECT o.id, o.user_id, o.plan_id, o.quantity, o.unit, o.total_cents, o.status,
+		        o.vault_ref, o.expires_at, o.created_at,
+		        COALESCE(p.name,''), COALESCE(p.code,''), COALESCE(p.proxy_type,'')
+		 FROM orders o LEFT JOIN plans p ON p.id = o.plan_id
+		 WHERE o.user_id=$1 ORDER BY o.created_at DESC LIMIT 200`, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []models.Order
 	for rows.Next() {
-		o, err := scanOrder(rows)
-		if err != nil {
+		var o models.Order
+		if err := rows.Scan(&o.ID, &o.UserID, &o.PlanID, &o.Quantity, &o.Unit, &o.TotalCents,
+			&o.Status, &o.VaultRef, &o.ExpiresAt, &o.CreatedAt,
+			&o.PlanName, &o.PlanCode, &o.ProxyType); err != nil {
 			return nil, err
 		}
-		out = append(out, *o)
+		out = append(out, o)
 	}
 	return out, rows.Err()
 }

@@ -50,6 +50,9 @@ type Order struct {
 	ID         uuid.UUID  `json:"id"`
 	UserID     uuid.UUID  `json:"user_id"`
 	PlanID     uuid.UUID  `json:"plan_id"`
+	PlanName   string     `json:"plan_name,omitempty"`
+	PlanCode   string     `json:"plan_code,omitempty"`
+	ProxyType  string     `json:"proxy_type,omitempty"`
 	Quantity   int        `json:"quantity"`
 	Unit       string     `json:"unit"`
 	TotalCents int64      `json:"total_cents"`
