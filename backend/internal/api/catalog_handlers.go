@@ -5,9 +5,12 @@ import (
 	"time"
 )
 
+// plansCacheKey is the Redis key for the cached public plan list.
+const plansCacheKey = "cache:plans:v1"
+
 // handleListPlans returns the public resale catalog (retail prices only).
 func (a *App) handleListPlans(w http.ResponseWriter, r *http.Request) {
-	const cacheKey = "cache:plans:v1"
+	const cacheKey = plansCacheKey
 	if v, ok, _ := a.Cache.Get(r.Context(), cacheKey); ok {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("X-Cache", "HIT")

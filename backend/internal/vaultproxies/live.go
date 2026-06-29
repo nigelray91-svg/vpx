@@ -14,11 +14,13 @@ import (
 // endpoints centralizes every upstream path. Adjust these (and the request/
 // response field tags below) to match https://vaultproxies.net/docs exactly.
 var endpoints = struct {
+	Catalog   string
 	Provision string
 	Usage     string // %s = ref
 	Revoke    string // %s = ref
 	Health    string
 }{
+	Catalog:   "/api/v1/reseller/products",
 	Provision: "/api/v1/reseller/orders",
 	Usage:     "/api/v1/reseller/orders/%s/usage",
 	Revoke:    "/api/v1/reseller/orders/%s",
@@ -96,6 +98,63 @@ type provisionResponse struct {
 	Proxies   []ProxyCredential `json:"proxies"`
 	// Some APIs return a single endpoint object instead of a list:
 	Endpoint *ProxyCredential `json:"endpoint"`
+}
+
+// catalogItem maps an upstream product. Field names/paths are placeholders —
+// align them with https://vaultproxies.net/docs. Price may arrive as cents or
+// as a decimal dollar amount; both are handled.
+type catalogItem struct {
+	Code          string   `json:"code"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Type          string   `json:"type"`
+	Unit          string   `json:"unit"`
+	PriceCents    int64    `json:"wholesale_cents"`
+	PricePerUnit  *float64 `json:"price_per_unit"`
+	MinQuantity   int      `json:"min_quantity"`
+}
+
+type catalogResponse struct {
+	Products []catalogItem `json:"products"`
+	Data     []catalogItem `json:"data"`
+}
+
+func (l *Live) Catalog(ctx context.Context) ([]Product, error) {
+	var out catalogResponse
+	if _, err := l.do(ctx, http.MethodGet, endpoints.Catalog, nil, &out); err != nil {
+		return nil, err
+	}
+	items := out.Products
+	if len(items) == 0 {
+		items = out.Data
+	}
+	products := make([]Product, 0, len(items))
+	for _, it := range items {
+		code := it.Code
+		if code == "" {
+			code = it.ID
+		}
+		wholesale := it.PriceCents
+		if wholesale == 0 && it.PricePerUnit != nil {
+			wholesale = int64(*it.PricePerUnit*100 + 0.5)
+		}
+		min := it.MinQuantity
+		if min < 1 {
+			min = 1
+		}
+		if code == "" || it.Type == "" || it.Unit == "" {
+			continue
+		}
+		products = append(products, Product{
+			Code:           code,
+			Name:           it.Name,
+			Type:           it.Type,
+			Unit:           it.Unit,
+			WholesaleCents: wholesale,
+			MinQuantity:    min,
+		})
+	}
+	return products, nil
 }
 
 func (l *Live) Provision(ctx context.Context, req ProvisionRequest) (*ProvisionResult, error) {

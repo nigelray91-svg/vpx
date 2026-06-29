@@ -113,6 +113,7 @@ func (a *App) Router() http.Handler {
 			r.Group(func(r chi.Router) {
 				r.Use(a.requireAdmin)
 				r.Get("/admin/stats", a.handleAdminStats)
+				r.With(a.csrf).Post("/admin/catalog/sync", a.handleSyncCatalog)
 			})
 		})
 	})

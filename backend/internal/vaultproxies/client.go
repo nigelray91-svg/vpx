@@ -62,8 +62,23 @@ type Usage struct {
 	Active             bool
 }
 
+// Product is one purchasable item in the upstream reseller catalog. The
+// reseller platform mirrors these into its own `plans` table, applying a
+// markup to derive the retail price customers pay.
+type Product struct {
+	Code           string // stable upstream identifier
+	Name           string
+	Type           string // residential | isp | datacenter | ipv6 | mobile
+	Unit           string // gb | ip | port
+	WholesaleCents int64  // your cost per unit, in USD cents
+	MinQuantity    int
+}
+
 // Client is the upstream abstraction used by the rest of the app.
 type Client interface {
+	// Catalog returns the upstream reseller product catalog (with wholesale
+	// prices) so the platform can sync it into its own plans table.
+	Catalog(ctx context.Context) ([]Product, error)
 	// Provision creates proxy access and returns usable credentials.
 	Provision(ctx context.Context, req ProvisionRequest) (*ProvisionResult, error)
 	// Usage returns consumption for a previously provisioned ref.

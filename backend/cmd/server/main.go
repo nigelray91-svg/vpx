@@ -13,6 +13,7 @@ import (
 	"github.com/vaultproxies/vpx/backend/internal/api"
 	"github.com/vaultproxies/vpx/backend/internal/auth"
 	"github.com/vaultproxies/vpx/backend/internal/cache"
+	"github.com/vaultproxies/vpx/backend/internal/catalog"
 	"github.com/vaultproxies/vpx/backend/internal/config"
 	"github.com/vaultproxies/vpx/backend/internal/payments"
 	"github.com/vaultproxies/vpx/backend/internal/store"
@@ -75,6 +76,19 @@ func main() {
 		Stripe: payments.NewStripe(cfg.StripeSecretKey, cfg.StripeWebhookSecret, successURL, cancelURL),
 		Now:    payments.NewNowPayments(cfg.NowPaymentsAPIKey, cfg.NowPaymentsIPNSecret, cfg.NowPaymentsBaseURL, successURL, cancelURL, ipnURL),
 	}
+
+	// Best-effort: mirror the upstream reseller catalog into the plans table on
+	// startup so retail pricing tracks VaultProxies. Non-fatal — the seeded
+	// catalog remains if the upstream is unreachable.
+	go func() {
+		syncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if _, err := catalog.Sync(syncCtx, st, app.Vault, cfg.ResellerMarkup, log); err != nil {
+			log.Warn("startup catalog sync skipped", "err", err)
+		} else {
+			_ = rc.Del(syncCtx, "cache:plans:v1")
+		}
+	}()
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,

@@ -20,6 +20,20 @@ func randHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
+// Catalog returns a representative wholesale catalog so the sync path runs
+// end-to-end without the upstream. Replace with live data via VAULTPROXIES_MODE=live.
+func (m *Mock) Catalog(ctx context.Context) ([]Product, error) {
+	return []Product{
+		{Code: "resi-rotating", Name: "Residential — Rotating", Type: "residential", Unit: "gb", WholesaleCents: 175, MinQuantity: 1},
+		{Code: "resi-sticky", Name: "Residential — Sticky Session", Type: "residential", Unit: "gb", WholesaleCents: 190, MinQuantity: 1},
+		{Code: "isp-static", Name: "ISP / Static Residential", Type: "isp", Unit: "ip", WholesaleCents: 150, MinQuantity: 1},
+		{Code: "dc-ip", Name: "Datacenter — Dedicated IP", Type: "datacenter", Unit: "ip", WholesaleCents: 50, MinQuantity: 3},
+		{Code: "dc-gb", Name: "Datacenter — Bandwidth", Type: "datacenter", Unit: "gb", WholesaleCents: 30, MinQuantity: 1},
+		{Code: "ipv6-pool", Name: "IPv6 — Bandwidth", Type: "ipv6", Unit: "gb", WholesaleCents: 25, MinQuantity: 1},
+		{Code: "mobile-4g", Name: "Mobile 4G/5G", Type: "mobile", Unit: "gb", WholesaleCents: 350, MinQuantity: 1},
+	}, nil
+}
+
 func (m *Mock) Provision(ctx context.Context, req ProvisionRequest) (*ProvisionResult, error) {
 	ref := "mock_" + randHex(8)
 	exp := time.Now().Add(30 * 24 * time.Hour)

@@ -86,12 +86,21 @@ on the next backend start), or run `make seed-admin ADMIN_EMAIL=you@example.com`
 > `/docs` and nothing else in the app needs to change. Run with
 > `VAULTPROXIES_MODE=mock` to exercise the full stack without the upstream.
 
-## Pricing / margin
+## Pricing / margin — synced from the upstream
 
-Plans live in the `plans` table (seeded in `backend/migrations/00002_seed_plans.sql`).
-Each plan has a wholesale and a retail price per unit (GB / IP / port). Edit the
-seed or the table to set your catalog and margin. `RESELLER_MARKUP` documents the
-default multiplier used when designing the catalog.
+The catalog is **not hardcoded**. On startup (and via `POST /api/v1/admin/catalog/sync`),
+the backend pulls the VaultProxies reseller product catalog and upserts it into the
+`plans` table, computing **`retail = round(wholesale × RESELLER_MARKUP)`**. Set
+`RESELLER_MARKUP` (e.g. `1.40` = +40%) and your margin is applied to every plan
+automatically; products retired upstream are deactivated. The seed migration only
+provides a fallback catalog for first boot / when the upstream is unreachable
+(e.g. `VAULTPROXIES_MODE=mock`).
+
+> Because this build environment blocks `vaultproxies.net`, the sync runs against
+> the **mock** catalog here. Set `VAULTPROXIES_MODE=live` + a valid
+> `VAULTPROXIES_API_KEY` on a network that can reach the upstream, confirm the
+> catalog endpoint/fields in `backend/internal/vaultproxies/live.go` against
+> `/docs`, and the real products + prices populate automatically.
 
 ## Security
 

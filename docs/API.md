@@ -92,6 +92,12 @@ A `proxy` object:
 | Method | Path | Returns |
 |---|---|---|
 | GET | `/api/v1/admin/stats` | `{ users, active_proxies, orders, total_balance_cents, revenue_paid_cents }` |
+| POST | `/api/v1/admin/catalog/sync` (CSRF) | `{ synced, deactivated, codes }` |
+
+`POST /admin/catalog/sync` pulls the live VaultProxies reseller catalog and
+upserts it into the `plans` table with `retail = round(wholesale * RESELLER_MARKUP)`,
+deactivating any plan no longer offered upstream. It also runs automatically on
+backend startup (best-effort).
 
 ## Webhooks (no auth; signature-verified)
 
