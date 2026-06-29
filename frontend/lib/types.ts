@@ -125,17 +125,14 @@ export interface ProxiesResponse {
 }
 
 export interface ProxyUsage {
-  bandwidth_used_bytes: number;
-  bandwidth_cap_bytes: number;
+  remaining_gb: number | null;
   active: boolean;
+  expires_at?: string | null;
 }
 
 export interface CreateOrderRequest {
   plan_id: string;
   quantity: number;
-  rotation?: Rotation;
-  sticky_ttl_seconds?: number;
-  region?: string;
 }
 
 export interface CreateOrderResponse {

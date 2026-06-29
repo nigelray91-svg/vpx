@@ -72,7 +72,11 @@ func main() {
 		Auth:   auth.NewManager(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL, cfg.AppName),
 		Turnst: auth.NewTurnstile(cfg.TurnstileSecretKey, cfg.TurnstileEnabled),
 		Google: auth.NewGoogleOAuth(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL),
-		Vault:  vaultproxies.New(cfg.VaultMode, cfg.VaultBaseURL, cfg.VaultAPIKey),
+		Vault: vaultproxies.New(cfg.VaultMode, cfg.VaultBaseURL, cfg.VaultAPIKey, vaultproxies.Gateways{
+			"residential": cfg.VaultGwResidential,
+			"datacenter":  cfg.VaultGwDatacenter,
+			"ipv6":        cfg.VaultGwIPv6,
+		}),
 		Stripe: payments.NewStripe(cfg.StripeSecretKey, cfg.StripeWebhookSecret, successURL, cancelURL),
 		Now:    payments.NewNowPayments(cfg.NowPaymentsAPIKey, cfg.NowPaymentsIPNSecret, cfg.NowPaymentsBaseURL, successURL, cancelURL, ipnURL),
 	}

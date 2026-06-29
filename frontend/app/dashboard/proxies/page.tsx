@@ -14,7 +14,7 @@ import {
   statusTone,
 } from '@/components/ui';
 import { useToast } from '@/components/Toast';
-import { formatBytes, formatDate, formatDuration, titleCase } from '@/lib/format';
+import { formatDate, titleCase } from '@/lib/format';
 
 export default function ProxiesPage() {
   const [proxies, setProxies] = useState<Proxy[] | null>(null);
@@ -98,9 +98,6 @@ function ProxyCard({ proxy }: { proxy: Proxy }) {
           <p className="mt-1 text-xs text-slate-500">
             {proxy.protocol.toUpperCase()} · created {formatDate(proxy.created_at)}
             {proxy.expires_at ? ` · expires ${formatDate(proxy.expires_at)}` : ''}
-            {proxy.rotation === 'sticky' && proxy.sticky_ttl_seconds > 0
-              ? ` · sticky ${formatDuration(proxy.sticky_ttl_seconds)}`
-              : ''}
           </p>
         </div>
         <button
@@ -138,13 +135,21 @@ function ProxyCard({ proxy }: { proxy: Proxy }) {
         <CopyRow label="cURL example" value={curl} onCopy={() => copy(curl, 'cURL command')} mono />
       </div>
 
+      {proxy.proxy_type === 'residential' && (
+        <p className="mt-3 text-xs text-slate-500">
+          Sticky session: append <code className="rounded bg-ink-700 px-1 text-slate-300">-session-XXXX-time-YYYY</code> to the
+          username (up to 12h). Omit it for per-request rotation.
+        </p>
+      )}
+
       {usage && (
         <div className="mt-4 rounded-lg border border-ink-600 bg-ink-850 p-3 text-sm text-slate-300">
           <p>
-            Bandwidth used: <span className="font-semibold text-white">{formatBytes(usage.bandwidth_used_bytes)}</span>
-            {usage.bandwidth_cap_bytes > 0 && <> / {formatBytes(usage.bandwidth_cap_bytes)}</>}
-            {' · '}
+            {usage.remaining_gb != null && (
+              <>Remaining: <span className="font-semibold text-white">{usage.remaining_gb.toFixed(2)} GB</span>{' · '}</>
+            )}
             <Badge tone={usage.active ? 'success' : 'danger'}>{usage.active ? 'active' : 'inactive'}</Badge>
+            {usage.expires_at ? <span className="text-slate-500"> · expires {formatDate(usage.expires_at)}</span> : null}
           </p>
         </div>
       )}

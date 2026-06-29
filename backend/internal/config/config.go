@@ -50,6 +50,12 @@ type Config struct {
 	VaultAPIKey  string
 	VaultMode    string // live | mock
 
+	// Upstream proxy gateways ("host:port") per type — the reseller API returns
+	// credentials but not the gateway endpoint (obtained from the dashboard).
+	VaultGwResidential string
+	VaultGwDatacenter  string
+	VaultGwIPv6        string
+
 	ResellerMarkup float64
 	MinTopupCents  int64
 }
@@ -91,7 +97,13 @@ func Load() (*Config, error) {
 		VaultAPIKey:  getEnv("VAULTPROXIES_API_KEY", ""),
 		VaultMode:    getEnv("VAULTPROXIES_MODE", "live"),
 
-		ResellerMarkup: getEnvFloat("RESELLER_MARKUP", 1.40),
+		VaultGwResidential: getEnv("VAULT_GATEWAY_RESIDENTIAL", ""),
+		VaultGwDatacenter:  getEnv("VAULT_GATEWAY_DATACENTER", ""),
+		VaultGwIPv6:        getEnv("VAULT_GATEWAY_IPV6", ""),
+
+		// VaultProxies resells at ~50% of retail, so retail = wholesale * 2.0
+		// by default. Tune to your own margin.
+		ResellerMarkup: getEnvFloat("RESELLER_MARKUP", 2.0),
 		MinTopupCents:  int64(getEnvInt("MIN_TOPUP_CENTS", 500)),
 	}
 

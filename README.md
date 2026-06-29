@@ -77,14 +77,26 @@ on the next backend start), or run `make seed-admin ADMIN_EMAIL=you@example.com`
 
 ## VaultProxies upstream integration
 
-> **Note:** The exact `/docs` endpoint paths and field names could not be
-> retrieved from the build environment (egress policy blocks `vaultproxies.net`).
-> The client targets the documented reseller model (provision an order for a
-> proxy type → receive endpoint credentials → query usage). **All paths and JSON
-> field names are centralized in `backend/internal/vaultproxies/live.go`** (the
-> `endpoints` struct and the request/response structs). Align them with the real
-> `/docs` and nothing else in the app needs to change. Run with
-> `VAULTPROXIES_MODE=mock` to exercise the full stack without the upstream.
+Implemented against the real [VaultProxies Reseller API](https://vaultproxies.net/docs):
+single `X-API-Key` header, base `https://vaultproxies.net`, four endpoints —
+
+| Our use | Upstream |
+|---|---|
+| Catalog sync | `GET /api/reseller/categories` |
+| Provision order | `POST /api/reseller/order` (`category_key`, `units`, `time_unit`) |
+| Live usage | `GET /api/reseller/services` |
+| Health / wallet | `GET /api/reseller/balance` |
+
+Categories are `resi_pergb`, `resi_unlim`, `dc_unlim`, `ipv6_pergb` (pricing_type
+`pergb`/`unlim`; units GB/HOUR/DAY). The order endpoint returns the proxy
+**username/password** but not the gateway host:port, so set `VAULT_GATEWAY_*`
+from your dashboard. Sticky sessions are controlled via the username
+(`-session-XXXX-time-YYYY`, up to 12h), not at order time.
+
+All wire structs live in `backend/internal/vaultproxies/live.go` and are covered
+by `live_test.go`, which asserts the mapping against the exact JSON from the docs.
+Run `VAULTPROXIES_MODE=mock` to exercise everything without the upstream; set
+`live` + `VAULTPROXIES_API_KEY` on a network that can reach vaultproxies.net.
 
 ## Pricing / margin — synced from the upstream
 

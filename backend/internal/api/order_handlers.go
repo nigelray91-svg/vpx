@@ -13,11 +13,19 @@ import (
 )
 
 type createOrderReq struct {
-	PlanID    string `json:"plan_id" validate:"required,uuid"`
-	Quantity  int    `json:"quantity" validate:"required,min=1,max=100000"`
-	Rotation  string `json:"rotation" validate:"omitempty,oneof=rotating sticky"`
-	StickyTTL int    `json:"sticky_ttl_seconds" validate:"omitempty,min=0,max=3600"`
-	Region    string `json:"region" validate:"omitempty,max=32"`
+	PlanID   string `json:"plan_id" validate:"required,uuid"`
+	Quantity int    `json:"quantity" validate:"required,min=1,max=100000"`
+}
+
+// timeUnitForPlan returns the upstream time_unit for unlimited plans (the
+// category's billing window: hour/day), or "" for per-GB plans.
+func timeUnitForPlan(unit string) string {
+	switch unit {
+	case "hour", "day", "week", "month":
+		return unit
+	default:
+		return ""
+	}
 }
 
 func (a *App) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
@@ -35,10 +43,6 @@ func (a *App) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	if req.Quantity < plan.MinQuantity {
 		writeError(w, http.StatusBadRequest, "quantity below plan minimum")
 		return
-	}
-	rotation := req.Rotation
-	if rotation == "" {
-		rotation = vaultproxies.RotationRotating
 	}
 	total := plan.RetailCentsUnit * int64(req.Quantity)
 
@@ -62,17 +66,14 @@ func (a *App) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3) Provision upstream.
+	// 3) Provision upstream (POST /api/reseller/order).
 	_ = a.Store.UpdateOrderStatus(r.Context(), order.ID, "provisioning", nil, nil)
 	result, err := a.Vault.Provision(r.Context(), vaultproxies.ProvisionRequest{
-		ProxyType:    plan.ProxyType,
-		Unit:         plan.Unit,
-		Quantity:     req.Quantity,
-		Rotation:     rotation,
-		StickyTTLSec: req.StickyTTL,
-		Pool:         plan.Code,
-		Region:       req.Region,
-		Label:        order.ID.String(),
+		CategoryKey: plan.Code,
+		Units:       req.Quantity,
+		TimeUnit:    timeUnitForPlan(plan.Unit),
+		ProxyType:   plan.ProxyType,
+		Label:       order.ID.String(),
 	})
 	if err != nil {
 		// Refund and mark failed — the customer is made whole.
@@ -97,7 +98,7 @@ func (a *App) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 			Username:            c.Username,
 			Password:            c.Password,
 			Pool:                c.Pool,
-			Rotation:            firstNonEmpty(c.Rotation, rotation),
+			Rotation:            firstNonEmpty(c.Rotation, "rotating"),
 			StickyTTLSeconds:    c.StickyTTLSeconds,
 			BandwidthLimitBytes: c.BandwidthLimitBytes,
 			ExpiresAt:           result.ExpiresAt,
@@ -150,19 +151,19 @@ func (a *App) handleProxyUsage(w http.ResponseWriter, r *http.Request) {
 	}
 	order, err := a.Store.GetOrder(r.Context(), proxy.OrderID, uid)
 	if err != nil || order.VaultRef == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"bandwidth_used_bytes": proxy.BandwidthUsedBytes})
+		writeJSON(w, http.StatusOK, map[string]any{"remaining_gb": nil, "active": proxy.Status == "active"})
 		return
 	}
 	usage, err := a.Vault.Usage(r.Context(), *order.VaultRef)
 	if err != nil {
-		writeJSON(w, http.StatusOK, map[string]any{"bandwidth_used_bytes": proxy.BandwidthUsedBytes})
+		writeJSON(w, http.StatusOK, map[string]any{"remaining_gb": nil, "active": proxy.Status == "active"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"bandwidth_used_bytes": usage.BandwidthUsedBytes,
-		"bandwidth_cap_bytes":  usage.BandwidthCapBytes,
-		"active":               usage.Active,
-	})
+	resp := map[string]any{"remaining_gb": usage.RemainingGB, "active": usage.Active}
+	if usage.ExpiresAt != nil {
+		resp["expires_at"] = usage.ExpiresAt
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func firstNonEmpty(vals ...string) string {

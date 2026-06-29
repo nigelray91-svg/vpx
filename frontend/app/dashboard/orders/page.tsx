@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
-import type { Order, Plan, Rotation, Wallet } from '@/lib/types';
+import type { Order, Plan, Wallet } from '@/lib/types';
 import {
   Badge,
   Button,
@@ -20,6 +20,22 @@ import { useToast } from '@/components/Toast';
 import { useAuth } from '@/components/AuthProvider';
 import { formatUsd, formatDate, titleCase } from '@/lib/format';
 
+// unitLabel turns a plan unit into a quantity-field label.
+function unitLabel(unit?: string): string {
+  switch (unit) {
+    case 'gb':
+      return 'Bandwidth (GB)';
+    case 'hour':
+      return 'Duration (hours)';
+    case 'day':
+      return 'Duration (days)';
+    case 'ip':
+      return 'Number of IPs';
+    default:
+      return 'Quantity';
+  }
+}
+
 export default function OrdersPage() {
   const { notify } = useToast();
   const { refresh } = useAuth();
@@ -34,9 +50,6 @@ export default function OrdersPage() {
   // form state
   const [planId, setPlanId] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [rotation, setRotation] = useState<Rotation>('rotating');
-  const [stickyTtl, setStickyTtl] = useState(600);
-  const [region, setRegion] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const loadAll = async () => {
@@ -83,13 +96,7 @@ export default function OrdersPage() {
     }
     setSubmitting(true);
     try {
-      const res = await api.createOrder({
-        plan_id: planId,
-        quantity,
-        rotation,
-        sticky_ttl_seconds: rotation === 'sticky' ? stickyTtl : 0,
-        region: region.trim() || undefined,
-      });
+      const res = await api.createOrder({ plan_id: planId, quantity });
       notify(
         `Order placed — ${res.proxies.length} proxy endpoint(s) provisioned.`,
         'success',
@@ -144,9 +151,9 @@ export default function OrdersPage() {
               </Field>
 
               <Field
-                label={`Quantity (${selectedPlan?.unit ?? 'unit'})`}
+                label={unitLabel(selectedPlan?.unit)}
                 htmlFor="qty"
-                hint={selectedPlan ? `Minimum ${selectedPlan.min_quantity}` : undefined}
+                hint={selectedPlan ? `Minimum ${selectedPlan.min_quantity} ${selectedPlan.unit}` : undefined}
               >
                 <input
                   id="qty"
@@ -158,42 +165,10 @@ export default function OrdersPage() {
                 />
               </Field>
 
-              <Field label="Rotation" htmlFor="rotation">
-                <select
-                  id="rotation"
-                  value={rotation}
-                  onChange={(e) => setRotation(e.target.value as Rotation)}
-                  className={inputClasses}
-                >
-                  <option value="rotating">Rotating (per request)</option>
-                  <option value="sticky">Sticky session</option>
-                </select>
-              </Field>
-
-              {rotation === 'sticky' && (
-                <Field label="Sticky TTL (seconds)" htmlFor="ttl" hint="Up to 3600 (60 min).">
-                  <input
-                    id="ttl"
-                    type="number"
-                    min={1}
-                    max={3600}
-                    value={stickyTtl}
-                    onChange={(e) => setStickyTtl(Math.min(3600, Math.max(1, parseInt(e.target.value || '1', 10))))}
-                    className={inputClasses}
-                  />
-                </Field>
-              )}
-
-              <Field label="Region (optional)" htmlFor="region">
-                <input
-                  id="region"
-                  type="text"
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  className={inputClasses}
-                  placeholder="us, gb, de…"
-                />
-              </Field>
+              <p className="rounded-lg border border-ink-600 bg-ink-850 px-3 py-2.5 text-xs text-slate-400">
+                Need a sticky IP? Residential plans support sessions up to 12h via
+                the proxy username — details on the Proxies page after ordering.
+              </p>
 
               <div className="flex items-center justify-between rounded-lg border border-ink-600 bg-ink-850 px-3 py-2.5">
                 <span className="text-sm text-slate-400">Total</span>
