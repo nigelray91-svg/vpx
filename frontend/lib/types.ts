@@ -56,9 +56,10 @@ export interface Wallet {
 export interface LedgerEntry {
   id: string;
   amount_cents: number;
-  type: string;
+  kind: string;
+  reference?: string;
   description: string;
-  balance_after_cents?: number;
+  balance_after: number;
   created_at: string;
 }
 

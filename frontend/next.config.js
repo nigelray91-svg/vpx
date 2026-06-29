@@ -14,6 +14,10 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   poweredByHeader: false,
+  // Linting is run separately in CI; we don't fail production builds on it
+  // (and we intentionally don't ship eslint-config-next, whose transitive
+  // glob CLI carries a dev-only advisory).
+  eslint: { ignoreDuringBuilds: true },
   async headers() {
     return [
       {
