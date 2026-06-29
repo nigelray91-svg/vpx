@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { Shield } from 'lucide-react';
-
-const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'VaultProxies Reseller';
+import { Logo } from '@/components/Logo';
+import { brand } from '@/lib/brand';
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
@@ -10,10 +9,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-8 md:grid-cols-4">
           <div>
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-brand-500" />
-              <span className="font-bold text-white">{siteName}</span>
-            </div>
+            <Logo animated={false} />
             <p className="mt-3 max-w-xs text-sm text-slate-400">
               Premium residential, ISP, datacenter, IPv6 and mobile proxies for
               teams that scale.
@@ -70,8 +66,11 @@ export function SiteFooter() {
             </ul>
           </div>
         </div>
-        <div className="mt-10 border-t border-ink-700/60 pt-6 text-sm text-slate-500">
-          © {year} {siteName}. All rights reserved.
+        <div className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-ink-700/60 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center">
+          <span>© {year} {brand.name}. All rights reserved.</span>
+          <a href={`mailto:${brand.supportEmail}`} className="hover:text-slate-300">
+            {brand.supportEmail}
+          </a>
         </div>
       </div>
     </footer>

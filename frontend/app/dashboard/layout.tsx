@@ -9,20 +9,19 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Package,
   Settings,
-  Shield,
   Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { Spinner } from '@/components/ui';
+import { Logo } from '@/components/Logo';
 import { formatUsd } from '@/lib/format';
-
-const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'VaultProxies Reseller';
 
 const nav = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/proxies', label: 'Proxies', icon: Boxes },
-  { href: '/dashboard/orders', label: 'Orders', icon: Shield },
+  { href: '/dashboard/orders', label: 'Orders', icon: Package },
   { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
@@ -63,10 +62,9 @@ export default function DashboardLayout({
 
   const SidebarContent = (
     <div className="flex h-full flex-col">
-      <Link href="/dashboard" className="flex items-center gap-2 px-6 py-5">
-        <Shield className="h-6 w-6 text-brand-500" />
-        <span className="text-base font-bold text-white">{siteName}</span>
-      </Link>
+      <div className="px-6 py-5">
+        <Logo href="/dashboard" />
+      </div>
       <nav className="flex-1 space-y-1 px-3 py-2">
         {nav.map((item) => {
           const Icon = item.icon;

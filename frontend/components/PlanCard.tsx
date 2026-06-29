@@ -40,12 +40,14 @@ export function PlanCard({
       <ul className="mt-5 space-y-2 text-sm text-slate-300">
         <li className="flex items-center gap-2">
           <Check className="h-4 w-4 text-brand-400" />
-          Minimum {plan.min_quantity} {plan.unit}
+          Billed per {plan.unit.toUpperCase()} · min {plan.min_quantity} {plan.unit}
           {plan.min_quantity > 1 ? 's' : ''}
         </li>
         <li className="flex items-center gap-2">
           <Check className="h-4 w-4 text-brand-400" />
-          Rotating &amp; sticky sessions
+          {['residential', 'isp', 'mobile'].includes(plan.proxy_type)
+            ? 'Rotating & sticky sessions'
+            : 'Per-request rotation'}
         </li>
         <li className="flex items-center gap-2">
           <Check className="h-4 w-4 text-brand-400" />

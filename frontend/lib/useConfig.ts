@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { SiteConfig } from '@/lib/types';
+import { brand } from '@/lib/brand';
 
 interface UseConfigResult {
   config: SiteConfig | null;
@@ -10,8 +11,7 @@ interface UseConfigResult {
   error: string | null;
 }
 
-const FALLBACK_SITE_NAME =
-  process.env.NEXT_PUBLIC_SITE_NAME ?? 'VaultProxies Reseller';
+const FALLBACK_SITE_NAME = brand.name;
 
 export function useConfig(): UseConfigResult {
   const [config, setConfig] = useState<SiteConfig | null>(null);

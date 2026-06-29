@@ -3,14 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { useConfig } from '@/lib/useConfig';
 import { Turnstile } from '@/components/Turnstile';
+import { Logo } from '@/components/Logo';
 import { ApiError, googleAuthUrl } from '@/lib/api';
 import { Button, Field, inputClasses } from '@/components/ui';
-
-const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'VaultProxies Reseller';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -62,10 +60,9 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-grid-fade px-4 py-12">
       <div className="w-full max-w-md">
-        <Link href="/" className="mb-8 flex items-center justify-center gap-2">
-          <Shield className="h-7 w-7 text-brand-500" />
-          <span className="text-xl font-bold text-white">{siteName}</span>
-        </Link>
+        <div className="mb-8 flex justify-center">
+          <Logo href="/" size={34} />
+        </div>
 
         <div className="rounded-2xl border border-ink-600 bg-ink-800/70 p-8 backdrop-blur">
           <h1 className="text-2xl font-bold text-white">Create your account</h1>
