@@ -8,8 +8,9 @@ async function publicGet<T>(path: string): Promise<T | null> {
   if (!API_BASE_URL) return null;
   try {
     const res = await fetch(`${API_BASE_URL}/api/v1${path}`, {
-      // Revalidate public catalog periodically.
-      next: { revalidate: 300 },
+      // Revalidate the public catalog frequently so admin catalog syncs reflect
+      // quickly (the backend already caches plans in Redis).
+      next: { revalidate: 30 },
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) return null;

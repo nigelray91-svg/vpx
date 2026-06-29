@@ -75,10 +75,10 @@ export default async function LandingPage() {
   const allPlans = await fetchPlansServer();
   // Feature a diverse spread across proxy types (incl. mobile & datacenter/GB)
   // rather than just the first few by sort order.
-  const featuredCodes = ['resi-rotating', 'isp-static', 'dc-gb', 'ipv6-pool', 'mobile-4g'];
+  const featuredCodes = ['resi_pergb', 'resi_unlim', 'dc_unlim', 'ipv6_pergb'];
   const byCode = new Map(allPlans.map((p) => [p.code, p]));
   const plans = featuredCodes.map((c) => byCode.get(c)).filter(Boolean).slice(0, 6) as typeof allPlans;
-  const previewPlans = plans.length ? plans : allPlans.slice(0, 3);
+  const previewPlans = plans.length ? plans : allPlans.slice(0, 6);
 
   const jsonLd = [
     {
@@ -342,7 +342,7 @@ export default async function LandingPage() {
           <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {previewPlans.map((plan, i) => (
               <Reveal key={plan.id} delay={(i % 3) * 90}>
-                <PlanCard plan={plan} popular={plan.code === 'resi-rotating'} />
+                <PlanCard plan={plan} popular={plan.code === 'resi_pergb'} />
               </Reveal>
             ))}
           </div>

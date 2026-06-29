@@ -50,7 +50,7 @@ export default async function PricingPage() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {plans.map((plan, i) => (
               <Reveal key={plan.id} delay={(i % 3) * 80}>
-                <PlanCard plan={plan} ctaLabel="Get started" popular={plan.code === 'resi-rotating'} />
+                <PlanCard plan={plan} ctaLabel="Get started" popular={plan.code === 'resi_pergb'} />
               </Reveal>
             ))}
           </div>
