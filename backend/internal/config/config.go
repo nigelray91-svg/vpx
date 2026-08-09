@@ -58,6 +58,13 @@ type Config struct {
 
 	ResellerMarkup float64
 	MinTopupCents  int64
+
+	// TrustProxy enables reading the client IP from X-Forwarded-For /
+	// X-Real-IP. Only enable it when the API is reachable *exclusively*
+	// through a reverse proxy that overwrites those headers (e.g. the Caddy
+	// edge in deploy/Caddyfile). If it is enabled while the API is directly
+	// reachable, any client can spoof its IP and bypass per-IP rate limits.
+	TrustProxy bool
 }
 
 // Load reads configuration from the environment and validates required fields.
@@ -105,6 +112,10 @@ func Load() (*Config, error) {
 		// by default. Tune to your own margin.
 		ResellerMarkup: getEnvFloat("RESELLER_MARKUP", 2.0),
 		MinTopupCents:  int64(getEnvInt("MIN_TOPUP_CENTS", 500)),
+
+		// Default off: safe when the API is exposed directly. Set TRUST_PROXY=true
+		// only when every request necessarily passes through your reverse proxy.
+		TrustProxy: getEnvBool("TRUST_PROXY", false),
 	}
 
 	secret := getEnv("JWT_SECRET", "")

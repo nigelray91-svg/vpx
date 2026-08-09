@@ -10,7 +10,11 @@ import type {
   AuthResponse,
   CreateOrderRequest,
   CreateOrderResponse,
+  GenerateRequest,
+  GenerateResponse,
   LedgerResponse,
+  LocationCountry,
+  LocationsResponse,
   OrdersResponse,
   PaymentsResponse,
   Plan,
@@ -253,6 +257,26 @@ export const api = {
 
   getProxyUsage: (id: string, signal?: AbortSignal) =>
     get<ProxyUsage>(`/proxies/${encodeURIComponent(id)}/usage`, signal),
+
+  // ---- Generator ----
+  // Generating mints credentials; it does not consume bandwidth, so it can be
+  // repeated as often as needed.
+  generateProxies: (id: string, body: GenerateRequest) =>
+    post<GenerateResponse>(`/proxies/${encodeURIComponent(id)}/generate`, body),
+
+  getLocations: async (
+    planKey: string,
+    country?: string,
+    signal?: AbortSignal,
+  ): Promise<LocationCountry[]> => {
+    const params = new URLSearchParams({ plan_key: planKey });
+    if (country) params.set('country', country);
+    const data = await get<LocationsResponse>(
+      `/locations?${params.toString()}`,
+      signal,
+    );
+    return data.countries ?? [];
+  },
 };
 
 export function googleAuthUrl(): string {

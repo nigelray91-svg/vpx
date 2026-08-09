@@ -147,8 +147,8 @@ func (s *Store) CreatePayment(ctx context.Context, userID uuid.UUID, provider, r
 func (s *Store) MarkPaymentPaidAndCredit(ctx context.Context, provider, ref string) (credited bool, err error) {
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var (
-			userID uuid.UUID
-			amount int64
+			userID          uuid.UUID
+			amount          int64
 			alreadyCredited bool
 		)
 		row := tx.QueryRow(ctx,

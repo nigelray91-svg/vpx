@@ -96,13 +96,13 @@ func (n *NowPayments) CreateInvoice(ctx context.Context, paymentID string, amoun
 
 // IPNPayload is the subset of the NOWPayments IPN we rely on.
 type IPNPayload struct {
-	PaymentID       any     `json:"payment_id"`
-	PaymentStatus   string  `json:"payment_status"`
-	OrderID         string  `json:"order_id"`
-	PriceAmount     float64 `json:"price_amount"`
-	PriceCurrency   string  `json:"price_currency"`
-	ActuallyPaid    float64 `json:"actually_paid"`
-	PayCurrency     string  `json:"pay_currency"`
+	PaymentID     any     `json:"payment_id"`
+	PaymentStatus string  `json:"payment_status"`
+	OrderID       string  `json:"order_id"`
+	PriceAmount   float64 `json:"price_amount"`
+	PriceCurrency string  `json:"price_currency"`
+	ActuallyPaid  float64 `json:"actually_paid"`
+	PayCurrency   string  `json:"pay_currency"`
 }
 
 // VerifyIPN validates the HMAC-SHA512 signature NOWPayments sends in the
@@ -113,6 +113,11 @@ func (n *NowPayments) VerifyIPN(body []byte, signature string) (*IPNPayload, err
 		return nil, fmt.Errorf("nowpayments IPN secret not configured")
 	}
 	// Re-serialize with sorted keys to match NOWPayments' signing scheme.
+	// Numbers are decoded to float64 deliberately: encoding/json's float
+	// formatting mirrors ECMAScript's (exponential below 1e-6 / at or above
+	// 1e21, with e-09 trimmed to e-9), so it reproduces JSON.stringify. Decoding
+	// with UseNumber would instead echo the wire literal and disagree with the
+	// signer on values like 1.23e-7.
 	var generic map[string]any
 	if err := json.Unmarshal(body, &generic); err != nil {
 		return nil, err
@@ -152,8 +157,7 @@ func writeSorted(buf *bytes.Buffer, v any) {
 			if i > 0 {
 				buf.WriteByte(',')
 			}
-			kb, _ := json.Marshal(k)
-			buf.Write(kb)
+			writeScalar(buf, k)
 			buf.WriteByte(':')
 			writeSorted(buf, t[k])
 		}
@@ -168,7 +172,22 @@ func writeSorted(buf *bytes.Buffer, v any) {
 		}
 		buf.WriteByte(']')
 	default:
-		b, _ := json.Marshal(t)
-		buf.Write(b)
+		writeScalar(buf, t)
 	}
+}
+
+// writeScalar encodes a leaf value the way JavaScript's JSON.stringify would.
+// encoding/json escapes <, > and & as </>/& by default, which
+// JSON.stringify does not — leaving it on would make the HMAC disagree with
+// NOWPayments for any payload containing those characters and cause valid IPNs
+// to be rejected (i.e. paid top-ups never credited).
+func writeScalar(buf *bytes.Buffer, v any) {
+	var tmp bytes.Buffer
+	enc := json.NewEncoder(&tmp)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return
+	}
+	// Encode appends a trailing newline.
+	buf.Write(bytes.TrimRight(tmp.Bytes(), "\n"))
 }

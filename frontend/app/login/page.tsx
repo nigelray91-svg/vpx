@@ -15,6 +15,10 @@ const oauthErrors: Record<string, string> = {
   invalid_oauth_response: 'Google sign-in was cancelled or failed.',
   oauth_exchange_failed: 'Could not complete Google sign-in. Please try again.',
   oauth_account_error: 'There was a problem with your account. Contact support.',
+  oauth_email_unverified:
+    'Your Google account’s email address is not verified, so it cannot be used to sign in. Verify it with Google, or sign in with your email and password.',
+  oauth_session_error: 'Could not start your session. Please try again.',
+  account_inactive: 'This account is not active. Contact support.',
 };
 
 function LoginInner() {

@@ -99,30 +99,38 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	a.issueSession(w, r, u)
 }
 
-// issueSession creates a refresh session + access token and sets cookies.
-func (a *App) issueSession(w http.ResponseWriter, r *http.Request, u *models.User) {
+// startSession mints an access token plus a rotating refresh session and sets
+// the auth cookies. It performs no response writing beyond the cookies so both
+// the JSON and the OAuth-redirect flows can share it.
+func (a *App) startSession(w http.ResponseWriter, r *http.Request, u *models.User) (string, error) {
 	access, err := a.Auth.IssueAccessToken(u.ID, u.Role)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not issue token")
-		return
+		return "", err
 	}
 	refresh, hash, err := auth.NewRefreshToken()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not issue token")
-		return
+		return "", err
 	}
 	csrfTok, err := auth.RandomString(24)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not issue token")
-		return
+		return "", err
 	}
 	expires := time.Now().Add(a.Auth.RefreshTTL())
 	if err := a.Store.CreateSession(r.Context(), u.ID, hash, r.UserAgent(), clientIP(r), expires); err != nil {
-		a.Log.Error("create session", "err", err)
+		return "", err
+	}
+	a.setAuthCookies(w, access, refresh, csrfTok)
+	return access, nil
+}
+
+// issueSession creates a refresh session + access token and sets cookies.
+func (a *App) issueSession(w http.ResponseWriter, r *http.Request, u *models.User) {
+	access, err := a.startSession(w, r, u)
+	if err != nil {
+		a.Log.Error("start session", "err", err, "user", u.ID)
 		writeError(w, http.StatusInternalServerError, "could not start session")
 		return
 	}
-	a.setAuthCookies(w, access, refresh, csrfTok)
 	writeJSON(w, http.StatusOK, authResponse{
 		User:        u,
 		AccessToken: access,
@@ -138,7 +146,24 @@ func (a *App) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 	hash := auth.HashToken(c.Value)
 	sess, err := a.Store.GetSessionByHash(r.Context(), hash)
-	if err != nil || sess.RevokedAt != nil || time.Now().After(sess.ExpiresAt) {
+	if err != nil {
+		a.clearAuthCookies(w)
+		writeErrorCode(w, http.StatusUnauthorized, "session expired", "unauthenticated")
+		return
+	}
+	// Reuse of an already-rotated refresh token means the token leaked (the
+	// legitimate client holds the newer one). Kill the whole family so the
+	// thief and the victim are both logged out rather than racing each other.
+	if sess.RevokedAt != nil {
+		a.Log.Warn("refresh token reuse detected, revoking all sessions", "user", sess.UserID, "ip", clientIP(r))
+		if err := a.Store.RevokeAllUserSessions(r.Context(), sess.UserID); err != nil {
+			a.Log.Error("revoke all sessions", "err", err, "user", sess.UserID)
+		}
+		a.clearAuthCookies(w)
+		writeErrorCode(w, http.StatusUnauthorized, "session expired", "unauthenticated")
+		return
+	}
+	if time.Now().After(sess.ExpiresAt) {
 		a.clearAuthCookies(w)
 		writeErrorCode(w, http.StatusUnauthorized, "session expired", "unauthenticated")
 		return
@@ -214,23 +239,45 @@ func (a *App) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, err := a.upsertGoogleUser(r.Context(), gu)
+	if errors.Is(err, errUnverifiedGoogleEmail) {
+		a.redirectAuthError(w, r, "oauth_email_unverified")
+		return
+	}
 	if err != nil {
 		a.Log.Error("google upsert", "err", err)
 		a.redirectAuthError(w, r, "oauth_account_error")
 		return
 	}
+	if u.Status != "active" {
+		a.redirectAuthError(w, r, "account_inactive")
+		return
+	}
 	// Issue cookies, then redirect to the frontend dashboard.
-	access, _ := a.Auth.IssueAccessToken(u.ID, u.Role)
-	refresh, hash, _ := auth.NewRefreshToken()
-	csrfTok, _ := auth.RandomString(24)
-	_ = a.Store.CreateSession(r.Context(), u.ID, hash, r.UserAgent(), clientIP(r), time.Now().Add(a.Auth.RefreshTTL()))
-	a.setAuthCookies(w, access, refresh, csrfTok)
+	if _, err := a.startSession(w, r, u); err != nil {
+		a.Log.Error("google start session", "err", err, "user", u.ID)
+		a.redirectAuthError(w, r, "oauth_session_error")
+		return
+	}
 	http.Redirect(w, r, a.Cfg.PublicBaseURL+"/dashboard", http.StatusFound)
 }
 
+// errUnverifiedGoogleEmail is returned when Google reports the profile's email
+// as unverified. Trusting it would let anyone who controls a Google Workspace
+// domain claim an arbitrary address and take over the matching local account.
+var errUnverifiedGoogleEmail = errors.New("google email not verified")
+
 func (a *App) upsertGoogleUser(ctx context.Context, gu *auth.GoogleUser) (*models.User, error) {
+	// An existing link is keyed on the immutable Google subject, so it stays
+	// valid regardless of the email's current verification state.
 	if u, err := a.Store.GetUserByGoogleID(ctx, gu.Sub); err == nil {
 		return u, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return nil, err
+	}
+	// Everything below binds an *email* to an identity, so the email must be
+	// proven. Google only sets email_verified for addresses it has validated.
+	if !gu.EmailVerified {
+		return nil, errUnverifiedGoogleEmail
 	}
 	email := strings.ToLower(strings.TrimSpace(gu.Email))
 	// Link to an existing email account if present.
@@ -243,7 +290,7 @@ func (a *App) upsertGoogleUser(ctx context.Context, gu *auth.GoogleUser) (*model
 		return nil, err
 	}
 	sub := gu.Sub
-	return a.Store.CreateUser(ctx, email, "", gu.Name, &sub, gu.EmailVerified)
+	return a.Store.CreateUser(ctx, email, "", gu.Name, &sub, true)
 }
 
 func (a *App) redirectAuthError(w http.ResponseWriter, r *http.Request, code string) {

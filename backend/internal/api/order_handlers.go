@@ -1,15 +1,17 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/vaultproxies/vpx/backend/internal/models"
 	"github.com/vaultproxies/vpx/backend/internal/store"
 	"github.com/vaultproxies/vpx/backend/internal/vaultproxies"
-	"github.com/go-chi/chi/v5"
 )
 
 type createOrderReq struct {
@@ -78,8 +80,20 @@ func (a *App) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Refund and mark failed — the customer is made whole.
 		a.Log.Error("provision failed, refunding", "order", order.ID, "err", err)
-		_, _ = a.Store.Credit(r.Context(), uid, "refund", total, order.ID.String(), "Refund: provisioning failed")
-		_ = a.Store.UpdateOrderStatus(r.Context(), order.ID, "failed", nil, nil)
+		// Use a context detached from the request: if the client disconnected,
+		// r.Context() is already cancelled and the refund would silently fail,
+		// leaving the customer debited for a proxy they never received.
+		refundCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
+		defer cancel()
+		if _, rerr := a.Store.Credit(refundCtx, uid, "refund", total, order.ID.String(), "Refund: provisioning failed"); rerr != nil {
+			// Money has left the wallet with nothing delivered — this needs a
+			// human, so log everything required to reconcile it by hand.
+			a.Log.Error("REFUND FAILED - manual reconciliation required",
+				"err", rerr, "order", order.ID, "user", uid, "amount_cents", total)
+		}
+		if err := a.Store.UpdateOrderStatus(refundCtx, order.ID, "failed", nil, nil); err != nil {
+			a.Log.Error("mark order failed", "err", err, "order", order.ID)
+		}
 		writeErrorCode(w, http.StatusBadGateway, "provisioning failed, you were refunded", "provision_failed")
 		return
 	}

@@ -23,13 +23,13 @@ func (a *App) handleListPlans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type planView struct {
-		ID            string `json:"id"`
-		Code          string `json:"code"`
-		Name          string `json:"name"`
-		ProxyType     string `json:"proxy_type"`
-		Unit          string `json:"unit"`
-		PriceCents    int64  `json:"price_cents"`
-		MinQuantity   int    `json:"min_quantity"`
+		ID          string `json:"id"`
+		Code        string `json:"code"`
+		Name        string `json:"name"`
+		ProxyType   string `json:"proxy_type"`
+		Unit        string `json:"unit"`
+		PriceCents  int64  `json:"price_cents"`
+		MinQuantity int    `json:"min_quantity"`
 	}
 	views := make([]planView, 0, len(plans))
 	for _, p := range plans {

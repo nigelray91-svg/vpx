@@ -11,9 +11,9 @@ import (
 var validate = validator.New()
 
 type errorBody struct {
-	Error   string            `json:"error"`
-	Code    string            `json:"code,omitempty"`
-	Fields  map[string]string `json:"fields,omitempty"`
+	Error  string            `json:"error"`
+	Code   string            `json:"code,omitempty"`
+	Fields map[string]string `json:"fields,omitempty"`
 }
 
 func mustJSON(v any) string {

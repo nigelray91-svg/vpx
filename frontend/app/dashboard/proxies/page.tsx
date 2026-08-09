@@ -14,6 +14,7 @@ import {
   statusTone,
 } from '@/components/ui';
 import { useToast } from '@/components/Toast';
+import { ProxyGenerator } from '@/components/ProxyGenerator';
 import { formatDate, titleCase } from '@/lib/format';
 
 export default function ProxiesPage() {
@@ -135,12 +136,7 @@ function ProxyCard({ proxy }: { proxy: Proxy }) {
         <CopyRow label="cURL example" value={curl} onCopy={() => copy(curl, 'cURL command')} mono />
       </div>
 
-      {proxy.proxy_type === 'residential' && (
-        <p className="mt-3 text-xs text-slate-500">
-          Sticky session: append <code className="rounded bg-ink-700 px-1 text-slate-300">-session-XXXX-time-YYYY</code> to the
-          username (up to 12h). Omit it for per-request rotation.
-        </p>
-      )}
+      <ProxyGenerator proxy={proxy} />
 
       {usage && (
         <div className="mt-4 rounded-lg border border-ink-600 bg-ink-850 p-3 text-sm text-slate-300">

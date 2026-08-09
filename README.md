@@ -25,7 +25,7 @@ keep the margin.
 
 | Layer | Tech |
 |---|---|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind |
+| Frontend | Next.js 15 (App Router), TypeScript, Tailwind |
 | Backend | Go 1.24, chi, pgx v5, go-redis v9 |
 | Database | PostgreSQL 16 |
 | Cache / rate limiting | Redis 7 (Lua token bucket) |
@@ -78,7 +78,7 @@ on the next backend start), or run `make seed-admin ADMIN_EMAIL=you@example.com`
 ## VaultProxies upstream integration
 
 Implemented against the real [VaultProxies Reseller API](https://vaultproxies.net/docs):
-single `X-API-Key` header, base `https://vaultproxies.net`, four endpoints —
+single `X-API-Key` header, base `https://vaultproxies.net`, all six endpoints —
 
 | Our use | Upstream |
 |---|---|
@@ -86,15 +86,33 @@ single `X-API-Key` header, base `https://vaultproxies.net`, four endpoints —
 | Provision order | `POST /api/reseller/order` (`category_key`, `units`, `time_unit`) |
 | Live usage | `GET /api/reseller/services` |
 | Health / wallet | `GET /api/reseller/balance` |
+| Geo targets | `GET /api/reseller/proxy/generator/locations` |
+| Proxy lines | `POST /api/reseller/proxy/generations/create` |
 
-Categories are `resi_pergb`, `resi_unlim`, `dc_unlim`, `ipv6_pergb` (pricing_type
-`pergb`/`unlim`; units GB/HOUR/DAY). The order endpoint returns the proxy
-**username/password** but not the gateway host:port, so set `VAULT_GATEWAY_*`
-from your dashboard. Sticky sessions are controlled via the username
-(`-session-XXXX-time-YYYY`, up to 12h), not at order time.
+Orderable categories are `resi_pergb`, `resi_unlim`, `dc_unlim`, `ipv6_pergb`
+(pricing_type `pergb`/`unlim`; units GB/HOUR/DAY).
+
+**Gateways are not hardcoded.** The order endpoint returns the proxy
+username/password but no host:port; the generator returns the authoritative
+`hostname`/`port` for the plan, so provisioning calls it straight after ordering.
+`VAULT_GATEWAY_*` remains only as a fallback if the generator is unavailable, so
+a paid order still yields usable credentials. Sticky sessions and geo targeting
+are likewise handled by the generator — usernames are never assembled by hand.
+
+Two upstream behaviours worth knowing, both by design:
+
+- **Generating is free.** It mints credentials rather than selling capacity, so
+  `remaining_gb` does not move and customers can regenerate as often as they
+  like. Bandwidth is consumed by traffic only.
+- **Rotating mode returns identical lines.** With no session token there is
+  nothing to differentiate them, and a fresh exit IP is issued per request.
+  `count` is only meaningful for `sticky`, where each line carries its own
+  session. The API returns an explanatory `note` rather than letting this look
+  like a bug.
 
 All wire structs live in `backend/internal/vaultproxies/live.go` and are covered
-by `live_test.go`, which asserts the mapping against the exact JSON from the docs.
+by `live_test.go`, which asserts the mapping against the exact JSON from the docs
+(including generator gateway selection and the fallback path).
 Run `VAULTPROXIES_MODE=mock` to exercise everything without the upstream; set
 `live` + `VAULTPROXIES_API_KEY` on a network that can reach vaultproxies.net.
 

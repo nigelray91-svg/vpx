@@ -6,24 +6,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// endpoints are the four real VaultProxies reseller API paths.
+// endpoints are the six real VaultProxies reseller API paths.
 // Reference: https://vaultproxies.net/docs
 var endpoints = struct {
 	Balance    string
 	Categories string
 	Order      string
 	Services   string
+	Locations  string
+	Generate   string
 }{
 	Balance:    "/api/reseller/balance",
 	Categories: "/api/reseller/categories",
 	Order:      "/api/reseller/order",
 	Services:   "/api/reseller/services",
+	Locations:  "/api/reseller/proxy/generator/locations",
+	Generate:   "/api/reseller/proxy/generations/create",
 }
 
 type Live struct {
@@ -43,6 +49,10 @@ func NewLive(baseURL, apiKey string, gateways Gateways) *Live {
 		gateways: gateways,
 		http:     &http.Client{Timeout: 20 * time.Second},
 	}
+}
+
+func (l *Live) logf(format string, args ...any) {
+	slog.Warn("vaultproxies: " + fmt.Sprintf(format, args...))
 }
 
 func (l *Live) do(ctx context.Context, method, path string, body any, out any) (int, error) {
@@ -70,7 +80,9 @@ func (l *Live) do(ctx context.Context, method, path string, body any, out any) (
 		return 0, err
 	}
 	defer resp.Body.Close()
-	data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	// Generous cap: a 10,000-line generation is several MB, and truncating it
+	// would surface as an opaque JSON decode error.
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if resp.StatusCode >= 400 {
 		// Errors are { "error": "..." }.
 		var e struct {
@@ -91,7 +103,9 @@ func (l *Live) do(ctx context.Context, method, path string, body any, out any) (
 	return resp.StatusCode, nil
 }
 
-// typeFromKey derives a proxy type from the category key.
+// typeFromKey derives a proxy type from the category key. The documented plan
+// keys are resi_pergb, resi_unlim, resi_unlim_budget, dc_unlim, dc_pergb,
+// mobile_pergb, backup_pergb, ipv6_pergb, shared_isp and eu_isp.
 func typeFromKey(key string) string {
 	switch {
 	case strings.HasPrefix(key, "resi"):
@@ -100,6 +114,12 @@ func typeFromKey(key string) string {
 		return "ipv6"
 	case strings.HasPrefix(key, "dc"):
 		return "datacenter"
+	case strings.HasPrefix(key, "mobile"):
+		return "mobile"
+	case strings.HasSuffix(key, "isp"):
+		return "isp"
+	case strings.HasPrefix(key, "backup"):
+		return "residential"
 	default:
 		return "datacenter"
 	}
@@ -108,13 +128,13 @@ func typeFromKey(key string) string {
 // ---- Catalog (GET /api/reseller/categories) ----
 
 type category struct {
-	ID            int    `json:"id"`
-	Key           string `json:"key"`
-	Name          string `json:"name"`
-	PricingType   string `json:"pricing_type"`
-	PricePerUnit  int64  `json:"price_per_unit_cts"`
-	Unit          string `json:"unit"`
-	MinUnits      int    `json:"min_units"`
+	ID           int    `json:"id"`
+	Key          string `json:"key"`
+	Name         string `json:"name"`
+	PricingType  string `json:"pricing_type"`
+	PricePerUnit int64  `json:"price_per_unit_cts"`
+	Unit         string `json:"unit"`
+	MinUnits     int    `json:"min_units"`
 }
 
 type categoriesResponse struct {
@@ -190,7 +210,6 @@ func (l *Live) Provision(ctx context.Context, req ProvisionRequest) (*ProvisionR
 		return nil, fmt.Errorf("vaultproxies: order returned no credentials")
 	}
 	ref := strconv.Itoa(out.Service.ID)
-	host, port := l.gateway(req.ProxyType)
 
 	var limitBytes int64
 	if out.Service.RemainingGB > 0 {
@@ -199,18 +218,47 @@ func (l *Live) Provision(ctx context.Context, req ProvisionRequest) (*ProvisionR
 
 	cred := ProxyCredential{
 		Protocol:            "http",
-		Host:                host,
-		Port:                port,
 		Username:            out.Service.Username,
 		Password:            out.Service.Password,
 		Pool:                req.CategoryKey,
-		Rotation:            "rotating", // sticky is controlled via the username
+		Rotation:            RotationRotating,
 		BandwidthLimitBytes: limitBytes,
 	}
+
+	// The order response carries credentials but no gateway. Ask the generator
+	// for a ready-to-use line: it returns the authoritative hostname/port for
+	// this plan, which is why no gateway is hardcoded here.
+	gens, gerr := l.Generate(ctx, GenerateRequest{
+		ServiceID: out.Service.ID,
+		PlanKey:   req.CategoryKey,
+		Protocol:  "HTTP",
+		Mode:      RotationRotating,
+		Count:     1,
+	})
+	if gerr == nil && len(gens) > 0 {
+		g := gens[0]
+		cred.Host, cred.Port = g.Hostname, g.Port
+		// The generator rewrites the username to encode geo/session grammar.
+		if g.Username != "" {
+			cred.Username = g.Username
+		}
+		if g.Password != "" {
+			cred.Password = g.Password
+		}
+	} else {
+		// Fall back to an operator-configured gateway so a generator outage
+		// still yields usable credentials rather than failing the paid order.
+		if gerr != nil {
+			l.logf("generate after order failed, falling back to configured gateway: %v", gerr)
+		}
+		cred.Host, cred.Port = l.gateway(req.ProxyType)
+	}
+
 	return &ProvisionResult{Ref: ref, Proxies: []ProxyCredential{cred}}, nil
 }
 
-// gateway returns the host/port for a proxy type from configuration.
+// gateway returns the host/port for a proxy type from optional configuration.
+// It is only a fallback: the generator endpoint is authoritative.
 func (l *Live) gateway(proxyType string) (string, int) {
 	hp := l.gateways[proxyType]
 	if hp == "" {
@@ -224,6 +272,94 @@ func (l *Live) gateway(proxyType string) (string, int) {
 	}
 	port, _ := strconv.Atoi(portStr)
 	return host, port
+}
+
+// ---- Generator (POST /api/reseller/proxy/generations/create) ----
+
+type generateExtra struct {
+	Mode           string `json:"mode,omitempty"`
+	Count          int    `json:"count,omitempty"`
+	SessionSeconds int    `json:"session_seconds,omitempty"`
+	SessionMinutes int    `json:"session_minutes,omitempty"`
+	SessionLength  string `json:"session_length,omitempty"`
+}
+
+type generatePayload struct {
+	ServiceID int           `json:"service_id"`
+	PlanKey   string        `json:"plan_key"`
+	Protocol  string        `json:"protocol,omitempty"`
+	Format    string        `json:"format,omitempty"`
+	Country   string        `json:"country,omitempty"`
+	Continent string        `json:"continent,omitempty"`
+	State     string        `json:"state,omitempty"`
+	City      string        `json:"city,omitempty"`
+	IPs       []string      `json:"ips,omitempty"`
+	Extra     generateExtra `json:"extra,omitempty"`
+}
+
+type generateResponse struct {
+	Generations []Generation `json:"generations"`
+}
+
+// Generate turns an active service into ready-to-use proxy lines. The response
+// carries the correct hostname and port for the plan, so callers never hardcode
+// a gateway.
+func (l *Live) Generate(ctx context.Context, req GenerateRequest) ([]Generation, error) {
+	if req.ServiceID == 0 || req.PlanKey == "" {
+		return nil, fmt.Errorf("vaultproxies: service_id and plan_key are required")
+	}
+	payload := generatePayload{
+		ServiceID: req.ServiceID,
+		PlanKey:   req.PlanKey,
+		Protocol:  req.Protocol,
+		Format:    req.Format,
+		Country:   req.Country,
+		Continent: req.Continent,
+		State:     req.State,
+		City:      req.City,
+		IPs:       req.IPs,
+		Extra: generateExtra{
+			Mode:           req.Mode,
+			Count:          req.Count,
+			SessionSeconds: req.SessionSeconds,
+			SessionLength:  req.SessionLength,
+		},
+	}
+	var out generateResponse
+	if _, err := l.do(ctx, http.MethodPost, endpoints.Generate, payload, &out); err != nil {
+		return nil, err
+	}
+	if len(out.Generations) == 0 {
+		return nil, fmt.Errorf("vaultproxies: generator returned no proxies")
+	}
+	return out.Generations, nil
+}
+
+// ---- Generator locations (GET /api/reseller/proxy/generator/locations) ----
+
+type locationsResponse struct {
+	Countries []Country `json:"countries"`
+}
+
+// Locations lists the geo targets available for a plan. Plans without geo
+// targeting return an empty list.
+func (l *Live) Locations(ctx context.Context, planKey, country string) ([]Country, error) {
+	q := url.Values{}
+	if planKey != "" {
+		q.Set("plan_key", planKey)
+	}
+	if country != "" {
+		q.Set("country", country)
+	}
+	path := endpoints.Locations
+	if len(q) > 0 {
+		path += "?" + q.Encode()
+	}
+	var out locationsResponse
+	if _, err := l.do(ctx, http.MethodGet, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return out.Countries, nil
 }
 
 // ---- Usage (GET /api/reseller/services) ----

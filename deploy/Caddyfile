@@ -17,7 +17,16 @@ panel.example.com {
 
 api.example.com {
 	encode gzip zstd
-	reverse_proxy backend:8080
+	reverse_proxy backend:8080 {
+		# Caddy APPENDS to X-Forwarded-For by default, so a client-supplied
+		# value stays first in the list — and that is the entry the backend
+		# reads. Overwrite it with the real peer address, otherwise anyone can
+		# forge the header and bypass the per-IP auth rate limits.
+		# If this Caddy sits behind another proxy (e.g. Cloudflare), replace
+		# {remote_host} with the trusted client IP that proxy provides.
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Real-IP {remote_host}
+	}
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		-Server

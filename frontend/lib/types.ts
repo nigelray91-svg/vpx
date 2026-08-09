@@ -140,6 +140,80 @@ export interface CreateOrderResponse {
   proxies: Proxy[];
 }
 
+// ---- Proxy generator (upstream /proxy/generations/create) ----
+
+export const OUTPUT_FORMATS = [
+  'ip:port:user:pass',
+  'user:pass@ip:port',
+  'ip:port@user:pass',
+  'user:pass:ip:port',
+  'ip:port:pass:user',
+  'protocol://user:pass@ip:port',
+  'protocol://ip:port',
+  'ip:port',
+  'user:pass',
+] as const;
+
+export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
+
+export interface GenerateRequest {
+  protocol?: 'HTTP' | 'SOCKS5';
+  format?: OutputFormat;
+  country?: string;
+  continent?: string;
+  state?: string;
+  city?: string;
+  ips?: string[];
+  mode?: Rotation;
+  count?: number;
+  session_seconds?: number;
+  session_length?: 'long' | 'short';
+}
+
+export interface Generation {
+  id: number;
+  service_id: number;
+  plan_key: string;
+  country: string;
+  protocol: string;
+  format: string;
+  hostname: string;
+  port: number;
+  username: string;
+  password: string;
+  output_line: string;
+  created_at: string;
+}
+
+export interface GenerateResponse {
+  generations: Generation[];
+  lines: string[];
+  mode: Rotation;
+  /** Present when the result needs explaining (e.g. identical rotating lines). */
+  note?: string;
+  session_seconds?: number;
+}
+
+export interface LocationCity {
+  name: string;
+}
+
+export interface LocationState {
+  code: string;
+  name: string;
+  cities?: LocationCity[];
+}
+
+export interface LocationCountry {
+  code: string;
+  name: string;
+  states?: LocationState[];
+}
+
+export interface LocationsResponse {
+  countries: LocationCountry[];
+}
+
 export interface ApiErrorShape {
   error?: string;
   code?: string;

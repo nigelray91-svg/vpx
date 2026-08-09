@@ -165,9 +165,17 @@ func (a *App) handleNowPaymentsWebhook(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing order id")
 		return
 	}
-	// Idempotency keyed on order id + status transition.
+	// Idempotency keyed on order id + status transition. A storage failure must
+	// surface as a 5xx: acknowledging with 200 would stop NOWPayments retrying
+	// and the top-up would silently never be credited.
 	eventKey := ref + ":" + ipn.PaymentStatus
-	if first, _ := a.Store.MarkWebhookSeen(r.Context(), "nowpayments", eventKey, ipn.PaymentStatus); !first {
+	first, err := a.Store.MarkWebhookSeen(r.Context(), "nowpayments", eventKey, ipn.PaymentStatus)
+	if err != nil {
+		a.Log.Error("nowpayments idempotency check", "err", err, "ref", ref)
+		writeError(w, http.StatusInternalServerError, "could not record event")
+		return
+	}
+	if !first {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "duplicate"})
 		return
 	}

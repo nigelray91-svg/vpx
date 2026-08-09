@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -32,16 +33,16 @@ func (m *Mock) Catalog(ctx context.Context) ([]Product, error) {
 }
 
 func (m *Mock) Provision(ctx context.Context, req ProvisionRequest) (*ProvisionResult, error) {
-	host := "gw." + req.ProxyType + ".mock-vaultproxies.local"
-	port := 8000
-	switch req.ProxyType {
-	case "residential":
-		port = 8000
-	case "datacenter":
-		port = 9000
-	case "ipv6":
-		port = 9090
+	// Mirror the live flow: the gateway comes from the generator's per-plan
+	// table, not from a hardcoded per-type guess.
+	gw, ok := mockHosts[req.CategoryKey]
+	if !ok {
+		gw = struct {
+			Host string
+			Port int
+		}{"gw." + req.ProxyType + ".mock-vaultproxies.local", 8000}
 	}
+	host, port := gw.Host, gw.Port
 	var limit int64
 	if req.Units > 0 {
 		limit = int64(req.Units) * 1e9
@@ -68,3 +69,96 @@ func (m *Mock) Usage(ctx context.Context, ref string) (*Usage, error) {
 func (m *Mock) Revoke(ctx context.Context, ref string) error { return nil }
 
 func (m *Mock) Healthy(ctx context.Context) bool { return true }
+
+// mockHosts mirrors the per-plan gateway table from the upstream docs so the
+// mock produces realistically-shaped lines.
+var mockHosts = map[string]struct {
+	Host string
+	Port int
+}{
+	"resi_pergb":   {"resi-gb.vaultproxies.com", 80},
+	"resi_unlim":   {"resi.vaultproxies.com", 8080},
+	"dc_unlim":     {"eu-dc.vaultproxies.com", 10808},
+	"dc_pergb":     {"dc-gb.vaultproxies.com", 777},
+	"mobile_pergb": {"mobile.vaultproxies.com", 8080},
+	"backup_pergb": {"na.vaultproxies.com", 80},
+	"shared_isp":   {"isp.vaultproxies.com", 30},
+	"eu_isp":       {"eu-isp.vaultproxies.com", 30},
+	"ipv6_pergb":   {"ipv6.vaultproxies.com", 30},
+}
+
+func (m *Mock) Generate(ctx context.Context, req GenerateRequest) ([]Generation, error) {
+	gw, ok := mockHosts[req.PlanKey]
+	if !ok {
+		gw = struct {
+			Host string
+			Port int
+		}{"resi-gb.mock-vaultproxies.local", 80}
+	}
+	count := req.Count
+	if count < 1 {
+		count = 1
+	}
+	if count > 10000 {
+		count = 10000
+	}
+	format := req.Format
+	if format == "" {
+		format = "ip:port:user:pass"
+	}
+	base := "u" + randHex(4)
+	pass := randHex(8)
+
+	out := make([]Generation, 0, count)
+	for i := 0; i < count; i++ {
+		user := base
+		if req.Country != "" {
+			user += "-geo-" + strings.ToLower(req.Country)
+		}
+		if req.Mode == RotationSticky {
+			ttl := req.SessionSeconds
+			if ttl <= 0 {
+				ttl = 600
+			}
+			user += "-sess-" + randHex(4) + "-life-" + strconv.Itoa(ttl)
+		}
+		out = append(out, Generation{
+			ID:         time.Now().UnixNano() + int64(i),
+			ServiceID:  req.ServiceID,
+			PlanKey:    req.PlanKey,
+			Country:    strings.ToLower(req.Country),
+			Protocol:   firstNonEmpty(req.Protocol, "HTTP"),
+			Format:     format,
+			Hostname:   gw.Host,
+			Port:       gw.Port,
+			Username:   user,
+			Password:   pass,
+			OutputLine: FormatLine(format, gw.Host, gw.Port, user, pass, firstNonEmpty(req.Protocol, "HTTP")),
+			CreatedAt:  time.Now().UTC().Format(time.RFC3339),
+		})
+	}
+	return out, nil
+}
+
+func (m *Mock) Locations(ctx context.Context, planKey, country string) ([]Country, error) {
+	if planKey == "ipv6_pergb" || planKey == "resi_unlim_budget" {
+		return []Country{}, nil
+	}
+	return []Country{
+		{Code: "US", Name: "United States", States: []State{
+			{Code: "CA", Name: "California", Cities: []City{{Name: "Los Angeles"}, {Name: "San Francisco"}}},
+			{Code: "NY", Name: "New York", Cities: []City{{Name: "New York"}}},
+		}},
+		{Code: "DE", Name: "Germany"},
+		{Code: "GB", Name: "United Kingdom"},
+	}, nil
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}

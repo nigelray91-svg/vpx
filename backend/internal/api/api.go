@@ -55,7 +55,12 @@ func (a *App) Router() http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	// X-Forwarded-For / X-Real-IP are attacker-controlled unless a reverse proxy
+	// overwrites them. Honouring them unconditionally would let anyone rotate
+	// their apparent IP and bypass the per-IP auth rate limits, so this is opt-in.
+	if a.Cfg.TrustProxy {
+		r.Use(middleware.RealIP)
+	}
 	r.Use(requestLogger(a.Log))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
@@ -74,18 +79,18 @@ func (a *App) Router() http.Handler {
 	r.Get("/readyz", a.handleReady)
 
 	r.Route("/api/v1", func(r chi.Router) {
-		// Public config for the frontend.
-		r.Get("/config", a.handlePublicConfig)
-		r.Get("/plans", a.handleListPlans)
+		// Public config for the frontend (cheap, cached, but still bounded).
+		r.With(a.rateLimit("public", 60, 5)).Get("/config", a.handlePublicConfig)
+		r.With(a.rateLimit("public", 60, 5)).Get("/plans", a.handleListPlans)
 
 		// Auth (with stricter rate limits + CSRF for cookie mutations).
 		r.Route("/auth", func(r chi.Router) {
 			r.With(a.rateLimit("auth", 10, 1)).Post("/register", a.handleRegister)
 			r.With(a.rateLimit("auth", 10, 1)).Post("/login", a.handleLogin)
-			r.With(a.csrf).Post("/refresh", a.handleRefresh)
+			r.With(a.rateLimit("auth", 30, 1), a.csrf).Post("/refresh", a.handleRefresh)
 			r.With(a.csrf).Post("/logout", a.handleLogout)
-			r.Get("/google", a.handleGoogleStart)
-			r.Get("/google/callback", a.handleGoogleCallback)
+			r.With(a.rateLimit("oauth", 20, 1)).Get("/google", a.handleGoogleStart)
+			r.With(a.rateLimit("oauth", 20, 1)).Get("/google/callback", a.handleGoogleCallback)
 		})
 
 		// Payment webhooks — no auth, verified by provider signature.
@@ -108,6 +113,11 @@ func (a *App) Router() http.Handler {
 			r.With(a.csrf).Post("/orders", a.handleCreateOrder)
 			r.Get("/proxies", a.handleListProxies)
 			r.Get("/proxies/{id}/usage", a.handleProxyUsage)
+			// Generation is free (it mints credentials, it does not sell
+			// bandwidth) but each call hits the upstream, so it gets its own
+			// tighter bucket.
+			r.With(a.rateLimit("generate", 20, 1), a.csrf).Post("/proxies/{id}/generate", a.handleGenerateProxies)
+			r.With(a.rateLimit("locations", 30, 2)).Get("/locations", a.handleLocations)
 
 			// Admin-only.
 			r.Group(func(r chi.Router) {
@@ -133,9 +143,9 @@ func (a *App) handleReady(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":     "ready",
-		"upstream":   a.Vault.Healthy(ctx),
-		"time":       time.Now().UTC(),
+		"status":   "ready",
+		"upstream": a.Vault.Healthy(ctx),
+		"time":     time.Now().UTC(),
 	})
 }
 

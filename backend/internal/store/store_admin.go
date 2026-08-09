@@ -3,11 +3,11 @@ package store
 import "context"
 
 type AdminStatsResult struct {
-	Users          int64 `json:"users"`
-	ActiveProxies  int64 `json:"active_proxies"`
-	Orders         int64 `json:"orders"`
-	TotalBalance   int64 `json:"total_balance_cents"`
-	RevenuePaid    int64 `json:"revenue_paid_cents"`
+	Users         int64 `json:"users"`
+	ActiveProxies int64 `json:"active_proxies"`
+	Orders        int64 `json:"orders"`
+	TotalBalance  int64 `json:"total_balance_cents"`
+	RevenuePaid   int64 `json:"revenue_paid_cents"`
 }
 
 func (s *Store) AdminStats(ctx context.Context) (*AdminStatsResult, error) {

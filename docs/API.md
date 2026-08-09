@@ -74,10 +74,52 @@ prefixed with `/api/v1`. Requests/responses are JSON.
 | GET | `/api/v1/orders` | — | `{ orders:[...] }` |
 | POST | `/api/v1/orders` | `{ plan_id, quantity, rotation?, sticky_ttl_seconds?, region? }` | `{ order, proxies:[...] }` |
 | GET | `/api/v1/proxies` | — | `{ proxies:[...] }` |
-| GET | `/api/v1/proxies/{id}/usage` | — | `{ bandwidth_used_bytes, bandwidth_cap_bytes, active }` |
+| GET | `/api/v1/proxies/{id}/usage` | — | `{ remaining_gb, active, expires_at? }` |
+| POST | `/api/v1/proxies/{id}/generate` (CSRF) | see below | `{ generations:[...], lines:[...], mode, note?, session_seconds? }` |
+| GET | `/api/v1/locations?plan_key=&country=` | — | `{ countries:[...] }` |
 
 Creating an order debits the wallet atomically; `402 insufficient_funds` if the
 balance is too low. Provisioning failures auto-refund the wallet.
+
+### Generating proxy lines
+
+`POST /api/v1/proxies/{id}/generate` turns one of the caller's own services into
+ready-to-use proxy lines via the upstream generator. Both the proxy and its
+order are looked up scoped to the authenticated user, so one customer can never
+generate against another's service.
+
+**Generating does not consume bandwidth** — it mints credentials rather than
+selling capacity, so `remaining_gb` is unchanged and customers may regenerate
+freely. Bandwidth is only consumed by traffic through the proxy.
+
+```json
+{ "mode":"sticky", "count":5, "protocol":"HTTP",
+  "format":"user:pass@ip:port", "country":"US", "city":"Los Angeles",
+  "session_seconds":600 }
+```
+
+| Field | Notes |
+|---|---|
+| `mode` | `rotating` (default) or `sticky` |
+| `count` | 1–10000, default 1 |
+| `protocol` | `HTTP` (default) or `SOCKS5` |
+| `format` | one of the nine documented layouts (`host:` accepted for `ip:`) |
+| `country` / `state` / `city` / `continent` | honoured per plan; ignored where unsupported |
+| `ips` | `shared_isp` only — pin lines to static IPs |
+| `session_seconds` | sticky only; **clamped server-side** to the plan's documented cap (e.g. `resi_pergb` 6 h, `mobile_pergb` 2 h) so a too-large value returns working credentials instead of an upstream 400 |
+
+The response's `hostname`/`port` come from the upstream generator, which is
+authoritative per plan — gateways are never hardcoded.
+
+In **rotating** mode every line is byte-identical: there is no session token to
+differentiate them and a fresh exit IP is issued per request. That is by design
+(and useful for tools that want a proxy-list file), so the response carries an
+explanatory `note` when `count > 1`. Use `sticky` for distinct concurrent
+session IPs.
+
+`GET /api/v1/locations` lists the geo targets a plan supports, cached in Redis
+for 6 h. `plan_key` must match a plan you actually sell. Plans without geo
+targeting (`ipv6_pergb`, `resi_unlim_budget`) return an empty list.
 
 A `proxy` object:
 ```json
@@ -110,4 +152,10 @@ backend startup (best-effort).
 { "error":"human message", "code":"machine_code", "fields":{"Email":"required"} }
 ```
 Common codes: `unauthenticated`, `forbidden`, `csrf`, `rate_limited`,
-`invalid_credentials`, `captcha`, `insufficient_funds`, `provision_failed`.
+`invalid_credentials`, `captcha`, `insufficient_funds`, `provision_failed`,
+`generate_failed`, `locations_failed`, `account_inactive`.
+
+OAuth failures redirect to `${PUBLIC_BASE_URL}/login?error=<code>` with codes
+`invalid_oauth_state`, `invalid_oauth_response`, `oauth_exchange_failed`,
+`oauth_account_error`, `oauth_email_unverified`, `oauth_session_error`,
+`account_inactive`.
