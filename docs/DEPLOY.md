@@ -52,10 +52,65 @@ At minimum, set:
 Payment and OAuth keys can stay blank for now — those features simply show as
 unavailable until filled in. Save with `Ctrl+O`, `Enter`, `Ctrl+X`.
 
+## 4b. If panel/api are proxied by Cloudflare (orange cloud)
+
+Cloudflare's proxy and Let's Encrypt deadlock on first issue: the ACME challenge
+is answered by Cloudflare, which in Full (strict) mode must reach your origin
+over HTTPS — but the origin has no certificate yet, because that is the thing
+being issued.
+
+Use a **Cloudflare Origin Certificate** instead. It never expires in any
+practical sense (15 years), needs no challenge, and no renewal.
+
+1. Cloudflare dashboard -> **SSL/TLS -> Origin Server -> Create Certificate**.
+   Accept the defaults; make sure the hostnames cover `panel.` and `api.`
+   (a wildcard `*.nullvault.net` plus `nullvault.net` covers both).
+2. Cloudflare shows two text blocks. Save them on the server:
+
+```bash
+nano deploy/certs/origin.pem   # paste the "Origin Certificate" block
+nano deploy/certs/origin.key   # paste the "Private Key" block
+chmod 600 deploy/certs/origin.key
+```
+
+   The private key is displayed **once** — save it before closing the dialog.
+
+3. Point the edge at the matching config:
+
+```bash
+echo 'CADDYFILE=./deploy/Caddyfile.cloudflare' >> .env
+```
+
+4. In Cloudflare, set **SSL/TLS mode to Full (strict)**. Origin certificates are
+   trusted by Cloudflare but not by browsers, so any weaker mode either fails or
+   silently downgrades the connection to your server.
+
+Optionally lock the origin down so nobody can bypass Cloudflare by hitting the
+IP directly (worth doing — it is the only thing that makes hiding the IP
+meaningful):
+
+```bash
+for ip in 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 \
+          141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 \
+          197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 \
+          104.24.0.0/14 172.64.0.0/13 131.0.72.0/22; do
+  ufw allow from $ip to any port 80,443 proto tcp
+done
+ufw allow 22/tcp        # keep SSH open, or you will lock yourself out
+ufw --force enable
+```
+
 ## 5. Check the reverse-proxy config parses
 
 ```bash
 docker run --rm -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+  caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+```
+
+Using the Cloudflare config instead? Validate that one:
+
+```bash
+docker run --rm -v "$PWD/deploy/Caddyfile.cloudflare:/etc/caddy/Caddyfile:ro" \
   caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
 ```
 
@@ -154,6 +209,8 @@ Then `docker compose up -d` to apply.
 | Symptom | Fix |
 |---|---|
 | No certificate / site not loading | DNS must resolve to this server before Caddy can issue certs. Check `dig +short panel.nullvault.net`. Ports 80 and 443 must be open in any provider firewall. |
+| Cert issuance hangs while orange-clouded | Expected — see step 4b, use a Cloudflare Origin Certificate. |
+| Cloudflare error 526 | Origin cert missing/mismatched, or SSL mode is not Full (strict). |
 | Redirect loop | Cloudflare SSL/TLS mode is "Flexible". Set it to **Full (strict)**. |
 | `POSTGRES_PASSWORD is required` | `.env` is missing or you are not in the `vpx` directory. |
 | Login always says rate limited | `TRUST_PROXY` is wrong for your setup, or `api` is proxied without the Cloudflare ranges in the Caddyfile. |

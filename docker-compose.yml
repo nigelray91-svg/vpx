@@ -98,7 +98,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Swap in deploy/Caddyfile.cloudflare (via CADDYFILE in .env) when the
+      # hostnames are proxied by Cloudflare and served with an origin cert.
+      - ${CADDYFILE:-./deploy/Caddyfile}:/etc/caddy/Caddyfile:ro
+      - ./deploy/certs:/etc/caddy/certs:ro
       - caddydata:/data
       - caddyconfig:/config
 

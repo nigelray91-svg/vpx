@@ -1,0 +1,4 @@
+# TLS private keys and certificates must never be committed.
+*
+!.gitignore
+!README.md

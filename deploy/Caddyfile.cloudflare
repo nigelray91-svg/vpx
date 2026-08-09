@@ -1,0 +1,61 @@
+# Reverse proxy for hostnames that stay PROXIED by Cloudflare (orange cloud).
+#
+# Use this instead of deploy/Caddyfile when panel/api are orange-clouded:
+#   CADDYFILE=./deploy/Caddyfile.cloudflare
+#
+# Why a separate file: with Cloudflare in front, Let's Encrypt's HTTP-01
+# challenge deadlocks. The challenge request is answered by Cloudflare, which in
+# Full (strict) mode must reach the origin over HTTPS — but the origin has no
+# certificate yet, because that is what is being issued. Cloudflare Origin
+# Certificates break the cycle: Cloudflare issues a long-lived certificate that
+# it trusts for origin connections, so no ACME challenge is ever needed.
+#
+# Generate one at: Cloudflare dashboard -> SSL/TLS -> Origin Server ->
+# Create Certificate. Cover both hostnames (or use *.yourdomain plus the apex),
+# then save the two PEM blocks on the server as:
+#   deploy/certs/origin.pem   (the certificate)
+#   deploy/certs/origin.key   (the private key)
+#
+# Cloudflare's SSL/TLS mode MUST be "Full (strict)". Origin certificates are not
+# publicly trusted — they are only valid for Cloudflare-to-origin connections,
+# which is exactly the traffic they serve here.
+
+{
+	# No ACME account is needed; certificates are supplied explicitly below.
+	# Real client addresses arrive in CF-Connecting-IP, accepted only from
+	# Cloudflare's ranges so a request sent straight to the origin cannot forge
+	# one and slip past the per-IP rate limits.
+	# Refresh periodically from https://www.cloudflare.com/ips/
+	servers {
+		client_ip_headers CF-Connecting-IP X-Forwarded-For
+		trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+	}
+}
+
+{$PANEL_DOMAIN:panel.example.com} {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	encode gzip zstd
+	reverse_proxy frontend:3000
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+{$API_DOMAIN:api.example.com} {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	encode gzip zstd
+	reverse_proxy backend:8080 {
+		# Overwrite rather than append: Caddy appends to X-Forwarded-For by
+		# default, leaving a client-supplied value first — and that is the entry
+		# the backend reads for rate limiting.
+		header_up X-Forwarded-For {http.request.client_ip}
+		header_up X-Real-IP {http.request.client_ip}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		-Server
+	}
+}
