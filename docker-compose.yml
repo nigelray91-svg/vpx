@@ -50,8 +50,14 @@ services:
         condition: service_healthy
     # The runtime image is distroless (no shell); external readiness is checked
     # via GET /readyz by the reverse proxy / orchestrator.
+    #
+    # Bound to loopback by default. Caddy reaches this over the internal Docker
+    # network, so in production the port must NOT be public: otherwise clients
+    # can bypass the edge (and its X-Forwarded-For overwrite) and defeat the
+    # per-IP rate limits. Override with BIND_ADDR=0.0.0.0 only if you are
+    # deliberately exposing the API without a reverse proxy.
     ports:
-      - "8080:8080"
+      - "${BIND_ADDR:-127.0.0.1}:8080:8080"
 
   frontend:
     build:
@@ -71,8 +77,9 @@ services:
       NODE_ENV: production
     depends_on:
       - backend
+    # Loopback by default — Caddy proxies to it over the internal network.
     ports:
-      - "3000:3000"
+      - "${BIND_ADDR:-127.0.0.1}:3000:3000"
 
   # Optional TLS-terminating reverse proxy. Enable with: docker compose --profile edge up
   caddy:
