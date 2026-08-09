@@ -80,7 +80,7 @@ type Config struct {
 func Load() (*Config, error) {
 	c := &Config{
 		AppEnv:        getEnv("APP_ENV", "development"),
-		AppName:       getEnv("APP_NAME", "Proxia"),
+		AppName:       getEnv("APP_NAME", "NullVault"),
 		PublicBaseURL: getEnv("PUBLIC_BASE_URL", "http://localhost:3000"),
 		APIBaseURL:    getEnv("API_BASE_URL", "http://localhost:8080"),
 		HTTPPort:      getEnv("HTTP_PORT", "8080"),
