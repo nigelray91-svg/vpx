@@ -1,10 +1,10 @@
-# VPX — Whitelabel Proxy Reseller
+# NullVault
 
-A self-hostable, production-oriented platform for **reselling VaultProxies**
-(residential / ISP / datacenter / IPv6 / mobile) under your own brand. Customers
-register, top up a wallet with **cards (Stripe)** or **crypto (NOWPayments)**, and
-buy proxy plans that are provisioned through the VaultProxies wholesale API. You
-keep the margin.
+The NullVault proxy platform — a self-hosted storefront and customer dashboard
+selling residential, ISP, datacenter, IPv6 and mobile proxies under the NullVault
+brand. Customers register, top up a wallet with **cards (Stripe)** or **crypto
+(NOWPayments)**, and buy plans that are provisioned through a wholesale upstream
+and delivered on NullVault's own hostnames. You keep the margin.
 
 ```
 ┌────────────┐      ┌──────────────┐      ┌────────────────────┐
@@ -52,24 +52,24 @@ default plan catalog (`backend/migrations`).
 
 ### Make an admin
 
-Set `ADMIN_EMAIL=you@example.com` in `.env` (the account is promoted to `admin`
-on the next backend start), or run `make seed-admin ADMIN_EMAIL=you@example.com`.
+Set `ADMIN_EMAIL=you@nullvault.shop` in `.env` (the account is promoted to `admin`
+on the next backend start), or run `make seed-admin ADMIN_EMAIL=you@nullvault.shop`.
 
 ## Production
 
-1. Point `panel.example.com` and `api.example.com` at the host (same registrable
-   domain so auth cookies work — see `deploy/Caddyfile`).
+1. Point `panel.nullvault.shop` and `api.nullvault.shop` at the host (same
+   registrable domain so auth cookies work) — see [`docs/DNS.md`](docs/DNS.md).
 2. Fill in real secrets in `.env`:
    - `JWT_SECRET` (`openssl rand -base64 48`), `POSTGRES_PASSWORD`
-   - `COOKIE_DOMAIN=.example.com`, `COOKIE_SECURE=true`, `APP_ENV=production`
-   - `PUBLIC_BASE_URL=https://panel.example.com`, `API_BASE_URL=https://api.example.com`
+   - `COOKIE_DOMAIN=.nullvault.shop`, `COOKIE_SECURE=true`, `APP_ENV=production`
+   - `PUBLIC_BASE_URL=https://panel.nullvault.shop`, `API_BASE_URL=https://api.nullvault.shop`
    - Stripe keys + `STRIPE_WEBHOOK_SECRET`; NOWPayments `API_KEY` + `IPN_SECRET`
-   - Google OAuth client id/secret + redirect `https://api.example.com/api/v1/auth/google/callback`
+   - Google OAuth client id/secret + redirect `https://api.nullvault.shop/api/v1/auth/google/callback`
    - Turnstile site + secret keys
    - `VAULTPROXIES_API_KEY` and `VAULTPROXIES_MODE=live`
 3. Configure provider webhooks to point at:
-   - Stripe: `https://api.example.com/api/v1/webhooks/stripe` (event `checkout.session.completed`)
-   - NOWPayments IPN: `https://api.example.com/api/v1/webhooks/nowpayments`
+   - Stripe: `https://api.nullvault.shop/api/v1/webhooks/stripe` (event `checkout.session.completed`)
+   - NOWPayments IPN: `https://api.nullvault.shop/api/v1/webhooks/nowpayments`
 4. Start with the TLS edge:
    ```bash
    docker compose --profile edge up -d --build
@@ -105,12 +105,12 @@ The generator returns the upstream's own gateway hostname (e.g.
 `resi-gb.vaultproxies.com`), and that hostname ends up in every proxy line your
 customers use — so shipping it unmodified advertises your supplier.
 
-Set `PROXY_BRAND_DOMAIN=proxies.yourbrand.com` and the backend rewrites each
+Set `PROXY_BRAND_DOMAIN=proxies.nullvault.shop` and the backend rewrites each
 gateway to your domain, preserving the label so the endpoints stay distinct:
 
 ```
-resi-gb.vaultproxies.com  ->  resi-gb.proxies.yourbrand.com
-eu-isp.vaultproxies.com   ->  eu-isp.proxies.yourbrand.com
+resi-gb.vaultproxies.com  ->  resi-gb.proxies.nullvault.shop
+eu-isp.vaultproxies.com   ->  eu-isp.proxies.nullvault.shop
 ```
 
 Create one **CNAME per gateway label** pointing at the upstream host (the full
