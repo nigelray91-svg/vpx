@@ -1,7 +1,7 @@
 # DNS Setup
 
 Everything you need to add at your domain registrar / DNS provider for
-`nullvault.net`. Nothing here requires changes on the rented server itself.
+`nullvault.shop`. Nothing here requires changes on the rented server itself.
 
 ## The mental model
 
@@ -9,14 +9,14 @@ Your domain does **two unrelated jobs**, and they point at different machines:
 
 ```
                     ┌─────────────────────────────────────────┐
-  Customer's        │  panel.nullvault.net  ─┐                │
-  browser  ────────▶│  api.nullvault.net    ─┴─▶ YOUR SERVER  │   A records
+  Customer's        │  panel.nullvault.shop  ─┐                │
+  browser  ────────▶│  api.nullvault.shop    ─┴─▶ YOUR SERVER  │   A records
                     │                            (the VPS)    │
                     └─────────────────────────────────────────┘
 
                     ┌─────────────────────────────────────────┐
-  Customer's        │  resi-gb.proxies.nullvault.net ─┐       │
-  scraper  ────────▶│  mobile.proxies.nullvault.net  ─┴─▶     │   CNAME records
+  Customer's        │  resi-gb.proxies.nullvault.shop ─┐       │
+  scraper  ────────▶│  mobile.proxies.nullvault.shop  ─┴─▶     │   CNAME records
   / browser         │           VAULTPROXIES' GATEWAYS        │
                     └─────────────────────────────────────────┘
 ```
@@ -29,7 +29,7 @@ Your domain does **two unrelated jobs**, and they point at different machines:
 Proxy traffic goes straight from your customer to the upstream gateway. It does
 **not** pass through your server, so your VPS needs no extra ports, no extra
 config, and carries none of that bandwidth. The CNAMEs exist purely so the
-hostname your customer sees says `nullvault.net` instead of the supplier's name.
+hostname your customer sees says `nullvault.shop` instead of the supplier's name.
 
 ## Records to create
 
@@ -62,7 +62,7 @@ Only create the ones for plans you actually sell.
 | CNAME | `ipv6.proxies`    | `ipv6.vaultproxies.com`    | **DNS only** |
 
 Most DNS panels append your domain automatically, so entering `resi-gb.proxies`
-produces `resi-gb.proxies.nullvault.net`. If yours wants the whole thing, type
+produces `resi-gb.proxies.nullvault.shop`. If yours wants the whole thing, type
 the full name.
 
 > **Cloudflare users:** the cloud icon next to each proxy CNAME must be **grey
@@ -86,7 +86,7 @@ If the backend ever brands a gateway label it does not recognise, it logs:
 
 ```
 ERROR unrecognised upstream gateway - branded hostname will not resolve until you add a CNAME
-      upstream=svc-8821.vaultproxies.com branded=svc-8821.proxies.nullvault.net
+      upstream=svc-8821.vaultproxies.com branded=svc-8821.proxies.nullvault.shop
 ```
 
 Add the CNAME it names, or avoid selling that plan. Watch for this in the
@@ -95,21 +95,21 @@ backend logs after adding any new plan to your catalogue.
 ## Matching backend configuration
 
 ```ini
-PROXY_BRAND_DOMAIN=proxies.nullvault.net
+PROXY_BRAND_DOMAIN=proxies.nullvault.shop
 PROXY_BRAND_STRICT=true
 
-PUBLIC_BASE_URL=https://panel.nullvault.net
-API_BASE_URL=https://api.nullvault.net
-COOKIE_DOMAIN=.nullvault.net
-NEXT_PUBLIC_API_BASE_URL=https://api.nullvault.net
-NEXT_PUBLIC_SITE_URL=https://panel.nullvault.net
+PUBLIC_BASE_URL=https://panel.nullvault.shop
+API_BASE_URL=https://api.nullvault.shop
+COOKIE_DOMAIN=.nullvault.shop
+NEXT_PUBLIC_API_BASE_URL=https://api.nullvault.shop
+NEXT_PUBLIC_SITE_URL=https://panel.nullvault.shop
 ```
 
-`panel` and `api` share the registrable domain `nullvault.net`, which is what
+`panel` and `api` share the registrable domain `nullvault.shop`, which is what
 lets the auth cookies work across both.
 
 The backend keeps the gateway label and swaps the domain, so
-`resi-gb.vaultproxies.com` becomes `resi-gb.proxies.nullvault.net` — which is
+`resi-gb.vaultproxies.com` becomes `resi-gb.proxies.nullvault.shop` — which is
 exactly the CNAME you created. Ports are untouched: a CNAME maps names, not
 ports, so one record per gateway covers every port it listens on (80, 777, 666,
 10808, 30, 31, …).
@@ -120,17 +120,17 @@ DNS changes take a few minutes to propagate (occasionally up to an hour).
 
 ```bash
 # Should print the upstream hostname, then an IP.
-dig +short resi-gb.proxies.nullvault.net
+dig +short resi-gb.proxies.nullvault.shop
 
 # The website should resolve to your server's IP.
-dig +short panel.nullvault.net
+dig +short panel.nullvault.shop
 ```
 
 Then prove a real proxy works end to end, using credentials generated in the
 dashboard:
 
 ```bash
-curl -x http://USERNAME:PASSWORD@resi-gb.proxies.nullvault.net:80 https://api.ipify.org
+curl -x http://USERNAME:PASSWORD@resi-gb.proxies.nullvault.shop:80 https://api.ipify.org
 ```
 
 That should print an exit IP that is **not** your server's. If it does, the

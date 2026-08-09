@@ -45,8 +45,8 @@ At minimum, set:
 | `JWT_SECRET` | the random string you just generated |
 | `POSTGRES_PASSWORD` | any long random string (never needs typing again) |
 | `VAULTPROXIES_API_KEY` | your reseller key |
-| `PANEL_DOMAIN` / `API_DOMAIN` | already `panel.nullvault.net` / `api.nullvault.net` |
-| `PROXY_BRAND_DOMAIN` | already `proxies.nullvault.net` |
+| `PANEL_DOMAIN` / `API_DOMAIN` | already `panel.nullvault.shop` / `api.nullvault.shop` |
+| `PROXY_BRAND_DOMAIN` | already `proxies.nullvault.shop` |
 | `TRUST_PROXY` | `true` (you are behind the Caddy edge) |
 
 Payment and OAuth keys can stay blank for now — those features simply show as
@@ -64,7 +64,7 @@ practical sense (15 years), needs no challenge, and no renewal.
 
 1. Cloudflare dashboard -> **SSL/TLS -> Origin Server -> Create Certificate**.
    Accept the defaults; make sure the hostnames cover `panel.` and `api.`
-   (a wildcard `*.nullvault.net` plus `nullvault.net` covers both).
+   (a wildcard `*.nullvault.shop` plus `nullvault.shop` covers both).
 2. Cloudflare shows two text blocks. Save them on the server:
 
 ```bash
@@ -138,15 +138,15 @@ Look for `server listening` from the backend and a certificate line from Caddy.
 ## 7. Verify
 
 ```bash
-curl -s https://api.nullvault.net/healthz     # {"status":"ok"}
-curl -s https://api.nullvault.net/readyz      # database + upstream reachable
+curl -s https://api.nullvault.shop/healthz     # {"status":"ok"}
+curl -s https://api.nullvault.shop/readyz      # database + upstream reachable
 ```
 
-Then open `https://panel.nullvault.net` and register an account.
+Then open `https://panel.nullvault.shop` and register an account.
 
 ## 8. Make yourself admin
 
-Put your registered email in `.env` as `ADMIN_EMAIL=you@nullvault.net`, then:
+Put your registered email in `.env` as `ADMIN_EMAIL=you@nullvault.shop`, then:
 
 ```bash
 docker compose restart backend
@@ -159,11 +159,11 @@ The account is promoted on the next start.
 Order a small plan in the dashboard, generate a proxy line, and run it:
 
 ```bash
-curl -x http://USERNAME:PASSWORD@resi-gb.proxies.nullvault.net:80 https://api.ipify.org
+curl -x http://USERNAME:PASSWORD@resi-gb.proxies.nullvault.shop:80 https://api.ipify.org
 ```
 
 You should get an exit IP that is neither your server's nor your own. Confirm
-the generated line shows **`nullvault.net`** and never `vaultproxies.com`.
+the generated line shows **`nullvault.shop`** and never `vaultproxies.com`.
 
 Also check the logs once for branding problems:
 
@@ -196,10 +196,10 @@ docker compose up -d --build frontend
 Once you have Stripe / NOWPayments keys in `.env`, register these URLs in each
 provider's dashboard:
 
-- Stripe: `https://api.nullvault.net/api/v1/webhooks/stripe` — event
+- Stripe: `https://api.nullvault.shop/api/v1/webhooks/stripe` — event
   `checkout.session.completed`. Copy the signing secret into
   `STRIPE_WEBHOOK_SECRET`.
-- NOWPayments IPN: `https://api.nullvault.net/api/v1/webhooks/nowpayments`.
+- NOWPayments IPN: `https://api.nullvault.shop/api/v1/webhooks/nowpayments`.
   Copy the IPN secret into `NOWPAYMENTS_IPN_SECRET`.
 
 Then `docker compose up -d` to apply.
@@ -208,7 +208,7 @@ Then `docker compose up -d` to apply.
 
 | Symptom | Fix |
 |---|---|
-| No certificate / site not loading | DNS must resolve to this server before Caddy can issue certs. Check `dig +short panel.nullvault.net`. Ports 80 and 443 must be open in any provider firewall. |
+| No certificate / site not loading | DNS must resolve to this server before Caddy can issue certs. Check `dig +short panel.nullvault.shop`. Ports 80 and 443 must be open in any provider firewall. |
 | Cert issuance hangs while orange-clouded | Expected — see step 4b, use a Cloudflare Origin Certificate. |
 | Cloudflare error 526 | Origin cert missing/mismatched, or SSL mode is not Full (strict). |
 | Redirect loop | Cloudflare SSL/TLS mode is "Flexible". Set it to **Full (strict)**. |

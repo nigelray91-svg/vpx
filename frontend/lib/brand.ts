@@ -11,7 +11,7 @@ export const brand = {
     process.env.NEXT_PUBLIC_SITE_TAGLINE?.trim() ||
     'Premium residential, ISP, datacenter & mobile proxies — provisioned in seconds.',
   // Support contact shown in the footer.
-  supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || 'support@nullvault.net',
+  supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || 'support@nullvault.shop',
   // Network size headline number (purely marketing copy).
   ipCount: process.env.NEXT_PUBLIC_IP_COUNT?.trim() || '32M+',
 };

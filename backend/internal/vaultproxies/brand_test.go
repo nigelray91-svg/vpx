@@ -147,12 +147,12 @@ func TestMockBrandsTheGateway(t *testing.T) {
 // A per-service gateway (e.g. resi_unlim_budget) has no pre-created CNAME, so
 // the operator must be told rather than the customer getting a dead endpoint.
 func TestUnknownGatewayLabelStillBrands(t *testing.T) {
-	b := NewBrander("proxies.nullvault.net", "", false)
+	b := NewBrander("proxies.nullvault.shop", "", false)
 	got, err := b.Host("svc-8821.vaultproxies.com")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != "svc-8821.proxies.nullvault.net" {
+	if got != "svc-8821.proxies.nullvault.shop" {
 		t.Fatalf("got %q", got)
 	}
 	// Known labels must not warn.
