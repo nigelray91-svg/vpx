@@ -36,17 +36,28 @@ type Live struct {
 	baseURL  string
 	apiKey   string
 	gateways Gateways
+	brander  *Brander
 	http     *http.Client
 }
 
 func NewLive(baseURL, apiKey string, gateways Gateways) *Live {
+	return NewLiveBranded(baseURL, apiKey, gateways, nil)
+}
+
+// NewLiveBranded builds a live client that rewrites upstream gateway hostnames
+// to the operator's own domain before anything reaches a customer.
+func NewLiveBranded(baseURL, apiKey string, gateways Gateways, brander *Brander) *Live {
 	if gateways == nil {
 		gateways = Gateways{}
+	}
+	if brander == nil {
+		brander = NewBrander("", "", false)
 	}
 	return &Live{
 		baseURL:  strings.TrimRight(baseURL, "/"),
 		apiKey:   apiKey,
 		gateways: gateways,
+		brander:  brander,
 		http:     &http.Client{Timeout: 20 * time.Second},
 	}
 }
@@ -331,6 +342,13 @@ func (l *Live) Generate(ctx context.Context, req GenerateRequest) ([]Generation,
 	}
 	if len(out.Generations) == 0 {
 		return nil, fmt.Errorf("vaultproxies: generator returned no proxies")
+	}
+	// Rewrite gateway hostnames here — the single point every generated line
+	// passes through — so no caller can accidentally surface the upstream's DNS.
+	for i := range out.Generations {
+		if err := l.brander.apply(&out.Generations[i]); err != nil {
+			return nil, err
+		}
 	}
 	return out.Generations, nil
 }

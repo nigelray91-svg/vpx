@@ -99,6 +99,30 @@ username/password but no host:port; the generator returns the authoritative
 a paid order still yields usable credentials. Sticky sessions and geo targeting
 are likewise handled by the generator — usernames are never assembled by hand.
 
+### Whitelabel proxy DNS
+
+The generator returns the upstream's own gateway hostname (e.g.
+`resi-gb.vaultproxies.com`), and that hostname ends up in every proxy line your
+customers use — so shipping it unmodified advertises your supplier.
+
+Set `PROXY_BRAND_DOMAIN=proxies.yourbrand.com` and the backend rewrites each
+gateway to your domain, preserving the label so the endpoints stay distinct:
+
+```
+resi-gb.vaultproxies.com  ->  resi-gb.proxies.yourbrand.com
+eu-isp.vaultproxies.com   ->  eu-isp.proxies.yourbrand.com
+```
+
+Create one **CNAME per gateway label** pointing at the upstream host (the full
+list is in `.env.example`). These are plaintext HTTP/SOCKS5 gateways with no TLS
+to the proxy itself, so a CNAME resolves to the same endpoint and authentication
+is unaffected. Keep the records **DNS-only** — proxying them through a CDN would
+break the proxy protocol. `PROXY_HOSTNAME_MAP` overrides individual hosts, and
+`PROXY_BRAND_STRICT=true` makes the backend refuse to emit an unbranded hostname
+rather than leak one. Rewriting happens at the single point every generated line
+passes through, and `TestGenerateNeverLeaksUpstreamHostname` asserts nothing
+customer-facing contains the upstream domain.
+
 Two upstream behaviours worth knowing, both by design:
 
 - **Generating is free.** It mints credentials rather than selling capacity, so

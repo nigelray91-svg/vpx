@@ -11,9 +11,20 @@ import (
 
 // Mock implements Client with deterministic-looking fake data mirroring the
 // real reseller API, so the full stack runs locally without the upstream.
-type Mock struct{}
+type Mock struct {
+	brander *Brander
+}
 
-func NewMock() *Mock { return &Mock{} }
+func NewMock() *Mock { return NewMockBranded(nil) }
+
+// NewMockBranded mirrors the live client's hostname branding so a local run
+// shows exactly the DNS customers would see in production.
+func NewMockBranded(brander *Brander) *Mock {
+	if brander == nil {
+		brander = NewBrander("", "", false)
+	}
+	return &Mock{brander: brander}
+}
 
 func randHex(n int) string {
 	b := make([]byte, n)
@@ -43,6 +54,9 @@ func (m *Mock) Provision(ctx context.Context, req ProvisionRequest) (*ProvisionR
 		}{"gw." + req.ProxyType + ".mock-vaultproxies.local", 8000}
 	}
 	host, port := gw.Host, gw.Port
+	if branded, err := m.brander.Host(host); err == nil && branded != "" {
+		host = branded
+	}
 	var limit int64
 	if req.Units > 0 {
 		limit = int64(req.Units) * 1e9
@@ -136,6 +150,11 @@ func (m *Mock) Generate(ctx context.Context, req GenerateRequest) ([]Generation,
 			OutputLine: FormatLine(format, gw.Host, gw.Port, user, pass, firstNonEmpty(req.Protocol, "HTTP")),
 			CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		})
+	}
+	for i := range out {
+		if err := m.brander.apply(&out[i]); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }

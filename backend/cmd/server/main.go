@@ -60,6 +60,15 @@ func main() {
 		}
 	}
 
+	// Whitelabel proxy DNS. Generated proxy lines embed the gateway hostname,
+	// so an unbranded live deployment exposes the wholesale provider to every
+	// customer — warn loudly rather than letting it ship silently.
+	brander := vaultproxies.NewBrander(cfg.ProxyBrandDomain, cfg.ProxyHostnameMap, cfg.ProxyBrandStrict)
+	if !brander.Configured() && cfg.VaultMode == "live" {
+		log.Warn("PROXY BRANDING NOT CONFIGURED - generated proxy lines will expose the upstream provider's hostname to your customers. " +
+			"Set PROXY_BRAND_DOMAIN (and the matching CNAME records) to whitelabel the proxy DNS.")
+	}
+
 	successURL := cfg.PublicBaseURL + "/dashboard/billing?status=success"
 	cancelURL := cfg.PublicBaseURL + "/dashboard/billing?status=cancelled"
 	ipnURL := cfg.APIBaseURL + "/api/v1/webhooks/nowpayments"
@@ -72,11 +81,11 @@ func main() {
 		Auth:   auth.NewManager(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL, cfg.AppName),
 		Turnst: auth.NewTurnstile(cfg.TurnstileSecretKey, cfg.TurnstileEnabled),
 		Google: auth.NewGoogleOAuth(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL),
-		Vault: vaultproxies.New(cfg.VaultMode, cfg.VaultBaseURL, cfg.VaultAPIKey, vaultproxies.Gateways{
+		Vault: vaultproxies.NewBranded(cfg.VaultMode, cfg.VaultBaseURL, cfg.VaultAPIKey, vaultproxies.Gateways{
 			"residential": cfg.VaultGwResidential,
 			"datacenter":  cfg.VaultGwDatacenter,
 			"ipv6":        cfg.VaultGwIPv6,
-		}),
+		}, brander),
 		Stripe: payments.NewStripe(cfg.StripeSecretKey, cfg.StripeWebhookSecret, successURL, cancelURL),
 		Now:    payments.NewNowPayments(cfg.NowPaymentsAPIKey, cfg.NowPaymentsIPNSecret, cfg.NowPaymentsBaseURL, successURL, cancelURL, ipnURL),
 	}

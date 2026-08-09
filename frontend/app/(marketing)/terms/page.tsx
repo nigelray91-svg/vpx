@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
+import { brand } from '@/lib/brand';
 
 export const metadata: Metadata = { title: 'Terms of Service' };
 
-const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'VaultProxies Reseller';
+const siteName = brand.name;
 
 export default function TermsPage() {
   return (

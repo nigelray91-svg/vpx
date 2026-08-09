@@ -56,6 +56,15 @@ type Config struct {
 	VaultGwDatacenter  string
 	VaultGwIPv6        string
 
+	// Whitelabel proxy DNS. Generated proxy lines embed the gateway hostname,
+	// so without these the upstream provider's domain is visible to every
+	// customer. ProxyBrandDomain rewrites resi-gb.vaultproxies.com to
+	// resi-gb.<domain>; ProxyHostnameMap overrides individual hosts; strict
+	// mode refuses to emit an unbranded hostname at all.
+	ProxyBrandDomain string
+	ProxyHostnameMap string
+	ProxyBrandStrict bool
+
 	ResellerMarkup float64
 	MinTopupCents  int64
 
@@ -107,6 +116,10 @@ func Load() (*Config, error) {
 		VaultGwResidential: getEnv("VAULT_GATEWAY_RESIDENTIAL", ""),
 		VaultGwDatacenter:  getEnv("VAULT_GATEWAY_DATACENTER", ""),
 		VaultGwIPv6:        getEnv("VAULT_GATEWAY_IPV6", ""),
+
+		ProxyBrandDomain: getEnv("PROXY_BRAND_DOMAIN", ""),
+		ProxyHostnameMap: getEnv("PROXY_HOSTNAME_MAP", ""),
+		ProxyBrandStrict: getEnvBool("PROXY_BRAND_STRICT", false),
 
 		// VaultProxies resells at ~50% of retail, so retail = wholesale * 2.0
 		// by default. Tune to your own margin.

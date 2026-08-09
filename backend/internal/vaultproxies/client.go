@@ -161,8 +161,14 @@ type Gateways map[string]string
 
 // New returns a live or mock client depending on mode.
 func New(mode, baseURL, apiKey string, gateways Gateways) Client {
+	return NewBranded(mode, baseURL, apiKey, gateways, nil)
+}
+
+// NewBranded returns a client that rewrites upstream gateway hostnames to the
+// operator's own domain, so customers never see the wholesale provider.
+func NewBranded(mode, baseURL, apiKey string, gateways Gateways, brander *Brander) Client {
 	if mode == "mock" || apiKey == "" {
-		return NewMock()
+		return NewMockBranded(brander)
 	}
-	return NewLive(baseURL, apiKey, gateways)
+	return NewLiveBranded(baseURL, apiKey, gateways, brander)
 }
