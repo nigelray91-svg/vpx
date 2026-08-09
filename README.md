@@ -169,6 +169,12 @@ distroless container.
 
 See [`docs/API.md`](docs/API.md) for the full endpoint contract.
 
+## DNS
+
+See [`docs/DNS.md`](docs/DNS.md) for the exact records to create — A records
+pointing the panel/API at your server, and CNAMEs pointing the branded proxy
+gateways at the upstream. Proxy traffic never transits your server.
+
 ## Repo layout
 
 ```
