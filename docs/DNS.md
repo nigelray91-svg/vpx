@@ -68,7 +68,29 @@ the full name.
 > **Cloudflare users:** the cloud icon next to each proxy CNAME must be **grey
 > ("DNS only")**, not orange. Orange sends traffic through Cloudflare's HTTP
 > proxy, which does not speak the proxy protocol — every proxy line would break.
-> The `panel` and `api` A records may stay orange.
+>
+> The `panel` and `api` A records may be orange. If you proxy them, note that
+> **both** must be orange to hide the server's IP — leaving either on DNS-only
+> publishes the same address. `deploy/Caddyfile` already reads the real client
+> address from `CF-Connecting-IP`, accepted only from Cloudflare's ranges, so
+> per-IP rate limiting keeps working. Set **SSL/TLS mode to Full (strict)**;
+> "Flexible" causes a redirect loop.
+
+## A caveat: per-service gateways
+
+Most plans use a fixed gateway, which is why the CNAMEs above can be created in
+advance. The upstream docs list `resi_unlim_budget` as *"assigned per service"* —
+its hostname differs per order, so no CNAME can exist for it ahead of time.
+
+If the backend ever brands a gateway label it does not recognise, it logs:
+
+```
+ERROR unrecognised upstream gateway - branded hostname will not resolve until you add a CNAME
+      upstream=svc-8821.vaultproxies.com branded=svc-8821.proxies.nullvault.net
+```
+
+Add the CNAME it names, or avoid selling that plan. Watch for this in the
+backend logs after adding any new plan to your catalogue.
 
 ## Matching backend configuration
 

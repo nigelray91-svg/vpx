@@ -2,8 +2,23 @@ package vaultproxies
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
+	"sync"
 )
+
+// knownGatewayLabels are the fixed gateway labels documented upstream. Each one
+// needs a matching CNAME under the brand domain. Anything outside this set is
+// almost certainly a per-service gateway (the docs assign resi_unlim_budget a
+// hostname per service), which cannot have been pre-created — so the branded
+// name would not resolve and the proxy would fail for the customer.
+var knownGatewayLabels = map[string]bool{
+	"resi-gb": true, "resi": true, "eu-dc": true, "na-dc": true, "dc-gb": true,
+	"mobile": true, "na": true, "isp": true, "eu-isp": true, "ipv6": true,
+}
+
+// warnedLabels keeps the warning to once per unrecognised label.
+var warnedLabels sync.Map
 
 // Brander rewrites upstream gateway hostnames to the operator's own domain.
 //
@@ -77,7 +92,18 @@ func (b *Brander) Host(upstream string) (string, error) {
 		if !found || label == "" {
 			label = key
 		}
-		return label + "." + b.domain, nil
+		branded := label + "." + b.domain
+		// A label we do not recognise has no pre-created CNAME, so the branded
+		// hostname will not resolve. Say so loudly rather than handing the
+		// customer a dead endpoint.
+		if !knownGatewayLabels[label] {
+			if _, seen := warnedLabels.LoadOrStore(label, true); !seen {
+				slog.Error("unrecognised upstream gateway - branded hostname will not resolve until you add a CNAME",
+					"upstream", upstream, "branded", branded,
+					"action", "create CNAME "+branded+" -> "+key)
+			}
+		}
+		return branded, nil
 	}
 	if b.strict {
 		return "", fmt.Errorf("no branded hostname configured for upstream gateway %q", upstream)
