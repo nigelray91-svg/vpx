@@ -48,12 +48,9 @@ func (m *Mock) Provision(ctx context.Context, req ProvisionRequest) (*ProvisionR
 	// table, not from a hardcoded per-type guess.
 	gw, ok := mockHosts[req.CategoryKey]
 	if !ok {
-		gw = struct {
-			Host string
-			Port int
-		}{"gw." + req.ProxyType + ".mock-vaultproxies.local", 8000}
+		gw = gateway{"gw." + req.ProxyType + ".mock-vaultproxies.local", 8000, 8000}
 	}
-	host, port := gw.Host, gw.Port
+	host, port := gw.Host, gw.HTTP
 	if branded, err := m.brander.Host(host); err == nil && branded != "" {
 		host = branded
 	}
@@ -84,31 +81,42 @@ func (m *Mock) Revoke(ctx context.Context, ref string) error { return nil }
 
 func (m *Mock) Healthy(ctx context.Context) bool { return true }
 
+// gateway is a plan's upstream endpoint. HTTP and SOCKS5 often sit on
+// different ports, so both are modelled.
+type gateway struct {
+	Host  string
+	HTTP  int
+	Socks int
+}
+
+// port returns the listening port for a protocol.
+func (g gateway) port(protocol string) int {
+	if strings.EqualFold(protocol, "SOCKS5") {
+		return g.Socks
+	}
+	return g.HTTP
+}
+
 // mockHosts mirrors the per-plan gateway table from the upstream docs so the
 // mock produces realistically-shaped lines.
-var mockHosts = map[string]struct {
-	Host string
-	Port int
-}{
-	"resi_pergb":   {"resi-gb.vaultproxies.com", 80},
-	"resi_unlim":   {"resi.vaultproxies.com", 8080},
-	"dc_unlim":     {"eu-dc.vaultproxies.com", 10808},
-	"dc_pergb":     {"dc-gb.vaultproxies.com", 777},
-	"mobile_pergb": {"mobile.vaultproxies.com", 8080},
-	"backup_pergb": {"na.vaultproxies.com", 80},
-	"shared_isp":   {"isp.vaultproxies.com", 30},
-	"eu_isp":       {"eu-isp.vaultproxies.com", 30},
-	"ipv6_pergb":   {"ipv6.vaultproxies.com", 30},
+var mockHosts = map[string]gateway{
+	"resi_pergb":   {"resi-gb.vaultproxies.com", 80, 80},
+	"resi_unlim":   {"resi.vaultproxies.com", 8080, 1080},
+	"dc_unlim":     {"eu-dc.vaultproxies.com", 10808, 10808},
+	"dc_pergb":     {"dc-gb.vaultproxies.com", 777, 666},
+	"mobile_pergb": {"mobile.vaultproxies.com", 8080, 1080},
+	"backup_pergb": {"na.vaultproxies.com", 80, 80},
+	"shared_isp":   {"isp.vaultproxies.com", 30, 31},
+	"eu_isp":       {"eu-isp.vaultproxies.com", 30, 31},
+	"ipv6_pergb":   {"ipv6.vaultproxies.com", 30, 31},
 }
 
 func (m *Mock) Generate(ctx context.Context, req GenerateRequest) ([]Generation, error) {
 	gw, ok := mockHosts[req.PlanKey]
 	if !ok {
-		gw = struct {
-			Host string
-			Port int
-		}{"resi-gb.mock-vaultproxies.local", 80}
+		gw = gateway{"resi-gb.mock-vaultproxies.local", 80, 80}
 	}
+	port := gw.port(req.Protocol)
 	count := req.Count
 	if count < 1 {
 		count = 1
@@ -144,10 +152,10 @@ func (m *Mock) Generate(ctx context.Context, req GenerateRequest) ([]Generation,
 			Protocol:   firstNonEmpty(req.Protocol, "HTTP"),
 			Format:     format,
 			Hostname:   gw.Host,
-			Port:       gw.Port,
+			Port:       port,
 			Username:   user,
 			Password:   pass,
-			OutputLine: FormatLine(format, gw.Host, gw.Port, user, pass, firstNonEmpty(req.Protocol, "HTTP")),
+			OutputLine: FormatLine(format, gw.Host, port, user, pass, firstNonEmpty(req.Protocol, "HTTP")),
 			CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		})
 	}
