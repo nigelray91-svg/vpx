@@ -169,6 +169,10 @@ distroless container.
 
 See [`docs/API.md`](docs/API.md) for the full endpoint contract.
 
+## Deploying
+
+See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the step-by-step server runbook.
+
 ## DNS
 
 See [`docs/DNS.md`](docs/DNS.md) for the exact records to create — A records

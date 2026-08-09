@@ -86,6 +86,11 @@ services:
     image: caddy:2-alpine
     profiles: ["edge"]
     restart: unless-stopped
+    environment:
+      # Caddy reads these directly from the Caddyfile, so the domains live in
+      # .env alongside everything else rather than being edited into the config.
+      PANEL_DOMAIN: ${PANEL_DOMAIN:?PANEL_DOMAIN is required for the edge profile}
+      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN is required for the edge profile}
     depends_on:
       - backend
       - frontend

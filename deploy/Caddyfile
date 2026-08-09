@@ -1,8 +1,10 @@
 # Production reverse proxy with automatic HTTPS (Let's Encrypt).
-# Replace the domains below and run: docker compose --profile edge up -d
 #
-# Both subdomains share the registrable domain so the auth cookies
-# (SameSite=Lax, Domain=.example.com) are sent on panel<->api requests.
+# Domains come from PANEL_DOMAIN / API_DOMAIN in .env - no edit needed here.
+# Run: docker compose --profile edge up -d
+#
+# Both subdomains must share the registrable domain so the auth cookies
+# (SameSite=Lax, Domain=.yourdomain) are sent on panel<->api requests.
 
 {
 	# ---- Cloudflare (orange cloud) support ----
@@ -25,7 +27,7 @@
 	}
 }
 
-panel.example.com {
+{$PANEL_DOMAIN:panel.example.com} {
 	encode gzip zstd
 	reverse_proxy frontend:3000
 	header {
@@ -36,7 +38,7 @@ panel.example.com {
 	}
 }
 
-api.example.com {
+{$API_DOMAIN:api.example.com} {
 	encode gzip zstd
 	reverse_proxy backend:8080 {
 		# Caddy APPENDS to X-Forwarded-For by default, so a client-supplied value
